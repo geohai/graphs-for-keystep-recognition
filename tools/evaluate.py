@@ -7,14 +7,15 @@ from gravit.utils.parser import get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model
 from gravit.datasets import GraphDataset
-from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds
-from gravit.utils.eval_tool import get_eval_score
+from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds, get_formatted_preds_egoexo_omnivore
+from gravit.utils.eval_tool import get_eval_score, plot_predictions, error_analysis
 
 
 def evaluate(cfg):
     """
     Run the evaluation process given the configuration
     """
+    print(cfg)
 
     # Input and output paths
     path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
@@ -47,10 +48,12 @@ def evaluate(cfg):
     logger.info('Evaluation process started')
 
     preds_all = []
+    labels_all = []
     with torch.no_grad():
         for i, data in enumerate(val_loader, 1):
             g = data.g.tolist()
             x = data.x.to(device)
+            y = data.y.to(device) # julia added this
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
             c = None
@@ -60,14 +63,23 @@ def evaluate(cfg):
             logits = model(x, edge_index, edge_attr, c)
 
             # Change the format of the model output
-            preds = get_formatted_preds(cfg, logits, g, data_dict)
+            if 'egoexo-omnivore' in cfg['dataset']:
+                preds = get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict)
+            else:
+                preds = get_formatted_preds(cfg, logits, g, data_dict)
+            # plot_predictions(cfg, preds)
             preds_all.extend(preds)
+            labels_all.extend(y)
 
             logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
 
+
     # Compute the evaluation score
+    # error_analysis(cfg, preds_all)
     logger.info('Computing the evaluation score')
-    eval_score = get_eval_score(cfg, preds_all)
+    eval_score = get_eval_score(cfg, preds_all, labels_all)
+    
+    
     logger.info(f'{cfg["eval_type"]} evaluation finished: {eval_score}')
 
 
@@ -90,6 +102,6 @@ if __name__ == "__main__":
         raise ValueError(f'Please run the training experiment "{args.exp_name}" first')
 
     args.cfg = os.path.join(path_result, 'cfg.yaml')
+    print(args.cfg)
     cfg = get_cfg(args)
-
     evaluate(cfg)

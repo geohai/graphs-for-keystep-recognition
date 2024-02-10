@@ -6,7 +6,7 @@ from torch_geometric.loader import DataLoader
 from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
-from gravit.datasets import GraphDataset
+from gravit.datasets import GraphDataset, EgoExoOmnivoreTrainDataset, EgoExoOmnivoreValDataset
 
 
 def train(cfg):
@@ -20,6 +20,7 @@ def train(cfg):
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     os.makedirs(path_result, exist_ok=True)
+    print(cfg)
 
     # Prepare the logger and save the current configuration for future reference
     logger = get_logger(path_result, file_name='train')
@@ -30,10 +31,17 @@ def train(cfg):
 
     # Build a model and prepare the data loaders
     logger.info('Preparing a model and data loaders')
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
     model = build_model(cfg, device)
-    train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
-    val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+
+    if 'mlp' not in cfg['graph_name']:
+        train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
+        val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+    
+    else:
+        train_loader = torch.utils.data.DataLoader(EgoExoOmnivoreTrainDataset(cfg['split']), batch_size=cfg['batch_size'], shuffle=True, num_workers=6)
+        val_loader = torch.utils.data.DataLoader(EgoExoOmnivoreValDataset(cfg['split']), batch_size=cfg['batch_size'], shuffle=False, num_workers=6)
 
     # Prepare the experiment
     loss_func = get_loss_func(cfg)
@@ -46,6 +54,7 @@ def train(cfg):
 
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
+        print(f'------- Epoch: {epoch} --------')
         model.train()
 
         # Train for a single epoch
@@ -53,16 +62,36 @@ def train(cfg):
         for data in train_loader:
             optimizer.zero_grad()
 
-            x, y = data.x.to(device), data.y.to(device)
-            edge_index = data.edge_index.to(device)
-            edge_attr = data.edge_attr.to(device)
-            c = None
-            if cfg['use_spf']:
-                c = data.c.to(device)
+            if 'mlp' not in cfg['graph_name']:
+                x, y = data.x.to(device), data.y.to(device)
+                edge_index = data.edge_index.to(device)
+                edge_attr = data.edge_attr.to(device)
+                c = None
+                if cfg['use_spf']:
+                    c = data.c.to(device)
 
-            logits = model(x, edge_index, edge_attr, c)
+                logits = model(x, edge_index, edge_attr, c)
+            
+            else:
+                x, y = data
+                x = x.to(device)
+                y = y.to(device)
+                edge_index = None
+                edge_attr = None
+                c = None
 
+                logits = model(x)
+                logits = logits.squeeze(1)
+                # max_index = torch.argmax(logits, dim=2)
+                # Create a tensor of zeros with the same shape as logits
+                # one_hot = torch.zeros_like(logits)
+
+                # Set the elements at the max_indices to 1
+                # logits = one_hot.scatter_(2, max_index.unsqueeze(2), 1)
+            print(logits.dtype, y.dtype)
+            print(logits.shape, y.shape)
             loss = loss_func(logits, y)
+            print(loss)
             loss.backward()
             loss_sum += loss.item()
             optimizer.step()
@@ -71,9 +100,11 @@ def train(cfg):
         scheduler.step()
 
         loss_train = loss_sum / len(train_loader)
+        print(loss_train)
 
         # Get the validation loss
         loss_val = val(val_loader, cfg['use_spf'], model, device, loss_func_val)
+        print(loss_val)
 
         # Save the best-performing checkpoint
         if loss_val < min_loss_val:
@@ -95,15 +126,31 @@ def val(val_loader, use_spf, model, device, loss_func):
     model.eval()
     loss_sum = 0
     with torch.no_grad():
-        for data in val_loader:
-            x, y = data.x.to(device), data.y.to(device)
-            edge_index = data.edge_index.to(device)
-            edge_attr = data.edge_attr.to(device)
-            c = None
-            if use_spf:
-                c = data.c.to(device)
+        for data in val_loader:  
+            if 'mlp' not in cfg['graph_name']:
+                x, y = data.x.to(device), data.y.to(device)
+                edge_index = data.edge_index.to(device)
+                edge_attr = data.edge_attr.to(device)
+                c = None
+                if cfg['use_spf']:
+                    c = data.c.to(device)
 
-            logits = model(x, edge_index, edge_attr, c)
+                logits = model(x, edge_index, edge_attr, c)
+            
+            else:
+                x, y = data
+                x = x.to(device)
+                y = y.to(device)
+                edge_index = None
+                edge_attr = None
+                c = None
+
+                logits = model(x)
+                logits = logits.squeeze(1)
+               
+
+            # logits = logits[:, :y.size(0)] # TODO: HOW TO HANDLE END OF WINDOWS
+
             loss = loss_func(logits, y)
             loss_sum += loss.item()
 

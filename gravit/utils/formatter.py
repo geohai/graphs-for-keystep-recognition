@@ -89,6 +89,7 @@ def get_formatted_preds(cfg, logits, g, data_dict):
         # Upsample the predictions to fairly compare with the ground-truth labels
         preds = []
         for pred in tmp:
+            # print(data_dict['actions'])
             preds.extend([data_dict['actions'][pred]] * cfg['sample_rate'])
 
         # Pair the final predictions with the video_id
@@ -97,3 +98,49 @@ def get_formatted_preds(cfg, logits, g, data_dict):
         preds = [(video_id, preds)]
 
     return preds
+
+
+
+def get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict):
+    """
+    This data is handled differently because the downsampling is done with windows and not a clean downsampling rate.
+    """
+
+    # Path to the annotations
+    (g,) = g
+    video_id = data_dict['all_ids'][g]
+    path_annts = os.path.join(cfg['root_data'], 'annotations')
+    with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+            label = [line.strip() for line in f]
+    target_length = len(label)
+
+    # get predictions
+    tmp = logits
+    if cfg['use_ref']:
+        tmp = logits[-1]
+
+    tmp = torch.softmax(tmp.detach().cpu(), dim=1).max(dim=1)[1].tolist()
+
+    # Upsample the predictions to fairly compare with the ground-truth labels
+    preds = []
+    for pred in tmp:
+        # upsampled = [data_dict['actions'][pred]] * 16
+        preds.extend([data_dict['actions'][pred]] * 16)
+
+    num_to_extend = target_length - len(preds)
+    if num_to_extend >= 32:
+        print('Issue upsampling labels.')
+        # raise ValueError
+        print(f'Extending preds by {num_to_extend} frames')
+        print(f'Target length: {target_length}')
+    preds.extend([data_dict['actions'][pred]] * num_to_extend)
+
+    # print(f'Length of preds: {len(preds)} | Target length: {target_length} | Video ID: {video_id}')
+
+    # Pair the final predictions with the video_id
+    preds = [(video_id, preds)]
+
+    
+
+    return preds
+

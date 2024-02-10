@@ -7,6 +7,11 @@
 import os
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+from matplotlib.patches import Patch
+import seaborn as sns
+
 
 from collections import defaultdict
 import csv
@@ -14,7 +19,7 @@ import decimal
 import heapq
 from .ava import object_detection_evaluation
 from .ava import standard_fields
-
+from mycolorpy import colorlist as mcp
 
 def compute_average_precision(precision, recall):
   """Compute Average Precision according to the definition in VOCdevkit.
@@ -387,7 +392,8 @@ def compare_segmentation(pred, label, th):
     return tp, fp, fn
 
 
-def get_eval_score(cfg, preds):
+
+def get_eval_score(cfg, preds, y=None):
     """
     Compute the evaluation score
     """
@@ -411,16 +417,37 @@ def get_eval_score(cfg, preds):
         threshold = [0.1, 0.25, 0.5]
         tp, fp, fn = [0]*len(threshold), [0]*len(threshold), [0]*len(threshold)
 
-        for video_id, pred in preds:
+        # print(len(preds))
+        # print(preds[0][0])
+        # Create csv results directory
+        if not os.path.exists(f'results/{cfg["exp_name"]}/csv'):
+            os.makedirs(f'results/{cfg["exp_name"]}/csv')
+
+        for (video_id, pred) in preds:
             # Get a list of ground-truth action labels
+            # TODO: remove this line once egoego pipeline is smoothed out
+            if (video_id + '.txt') not in os.listdir(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth')):
+               print(f'Skipping {video_id}')
+               continue
+
             with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-                label = [line.strip() for line in f]
+              label = [line.strip() for line in f]
+            
+            # write results of each video to csv
+            pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(f'results/{cfg["exp_name"]}/csv/results_{video_id}.csv', index=False)
 
             total += len(label)
-            for i, lb in enumerate(label):
-                if pred[i] == lb:
+            try:
+              for i, lb in enumerate(label):
+                  if pred[i] == lb:
                     correct += 1
-
+            except:
+              print(f'Error in {video_id}')
+              # print(f'pred: {pred}')
+              # print(f'label: {label}')
+              print(f'len(pred): {len(pred)} | len(label): {len(label)}')
+              continue
+         
             for i, th in enumerate(threshold):
                 tp_, fp_, fn_ = compare_segmentation(pred, label, th)
                 tp[i] += tp_
@@ -432,7 +459,221 @@ def get_eval_score(cfg, preds):
         for i, th in enumerate(threshold):
             pre = tp[i] / (tp[i]+fp[i])
             rec = tp[i] / (tp[i]+fn[i])
-            f1 = np.nan_to_num(2*pre*rec / (pre+rec))
+            if pre+rec == 0:
+               f1 = 0
+            else:
+               f1 = np.nan_to_num(2*pre*rec / (pre+rec))
             str_score += f', (F1@{th}) {f1*100:.2f}%'
 
     return str_score
+
+
+# def plot_ground_truth(cfg, video_id, actions, reverse):
+#   # Define the color map
+#     cmap = 'tab20'
+#     colors = mcp.gen_color(cmap="tab20",n=len(actions))
+
+#     # Path to the annotations
+#     path_annts = os.path.join(cfg['root_data'], 'annotations')
+
+#     eval_type = cfg['eval_type']
+  
+#     if eval_type == 'AS':
+#             # Get a list of ground-truth action labels
+#           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+#               label = [line.strip() for line in f]
+
+#           label = [actions[i] for i in label]
+
+#           # plot each session
+#           f, ax = plt.subplots(1, 1, figsize=(18, 3))
+
+#           method = 'Ground Truth'
+#           method_data = label
+
+#           # Plot each row
+#           ax.imshow([method_data], aspect='auto', cmap=cmap)
+#           ax.set_yticks([0])
+#           ax.set_yticklabels([method])
+#           ax.set_xticks([])  # Remove x-ticks if not needed
+
+#           # Set the legend
+#           # You need to create a patch (proxy artist) for each color in the colormap
+        
+#           legend_patches = [Patch(color=colors[i], label=reverse[i]) for i in range(len(colors))]
+#           plt.legend(handles=legend_patches, bbox_to_anchor=(1.05, 1), loc='upper left')
+
+#           # Adjust layout
+#           plt.tight_layout()
+          
+#           plt.show()
+
+
+def plot_predictions(cfg, preds):
+    """
+    Compute the evaluation score
+    """
+    
+
+    # Build a mapping from action classes to action ids
+    actions = {}
+    reverse = {}
+    with open(os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/mapping.txt')) as f:
+        for line in f:
+            aid, cls = line.strip().split(' ')
+            actions[cls] = int(aid)
+    with open(os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/mapping.txt')) as f:
+        for line in f:
+            aid, cls = line.strip().split(' ')
+            reverse[int(aid)] = cls
+
+  
+    # Define the color map
+    cmap = 'twilight' #tab20'
+    colors = mcp.gen_color(cmap="tab20",n=len(actions))
+
+    # Path to the annotations
+    path_annts = os.path.join(cfg['root_data'], 'annotations')
+
+    eval_type = cfg['eval_type']
+    if eval_type == 'AVA_ASD':
+        print('incomplete function')
+    elif eval_type == 'AVA_AL':
+        print('incomplete function')
+    elif eval_type == 'AS':
+       for video_id, pred in preds:
+            # Get a list of ground-truth action labels
+            with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+                label = [line.strip() for line in f]
+
+            pred = [actions[i] for i in pred]
+            label = [actions[i] for i in label]
+
+            # plot each session
+            f, axs = plt.subplots(2, 1, figsize=(18, 6))
+
+            methods = ['Ground Truth', 'Predicted']
+            data = [label, pred]
+
+            # Plot each row
+            for ax, method_data, method in zip(axs, data, methods):
+                ax.imshow([method_data], aspect='auto', cmap=cmap)
+                ax.set_yticks([0])
+                ax.set_yticklabels([method])
+                ax.set_xticks([])  # Remove x-ticks if not needed
+
+            # Set the legend
+            # You need to create a patch (proxy artist) for each color in the colormap
+            # Adjust layout
+            plt.tight_layout()
+            plt.savefig(f'results/{cfg["exp_name"]}/plots/action_segmentation_comparison_{video_id}.png', bbox_inches='tight')
+            # plt.show()
+
+            legend_patches = [Patch(color=colors[i], label=reverse[i]) for i in range(len(colors))]
+            plt.legend(handles=legend_patches, bbox_to_anchor=(1.05, 1), loc='upper left')
+
+            # Create a separate legend figure and axis
+            legend_fig, legend_ax = plt.subplots(figsize=(5, 10))  # Adjust the size as needed
+
+            # Extract the legend from the main figure
+            # Create a dummy plot in the legend axis
+            legend_ax.plot([], [], ' ', label="Legend") 
+            legend_ax.legend(handles=legend_patches, loc='upper left')
+            legend_ax.axis('off')  # Turn off the axis in the legend figure
+            # legend_ax.add_artist(legend)
+
+            # Save the legend figure
+            legend_fig.savefig(f'results/{cfg["exp_name"]}/plots/legend_figure.png', bbox_inches='tight')
+
+
+
+
+    return 
+
+
+def error_analysis(cfg, preds):
+    """
+    Compute the evaluation score
+    """
+    # Path to the annotations
+    # Build a mapping from action classes to action ids
+    actions = {}
+    reverse = {}
+    with open(os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/mapping.txt')) as f:
+        for line in f:
+            aid, cls = line.strip().split(' ')
+            actions[cls] = int(aid)
+    with open(os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/mapping.txt')) as f:
+        for line in f:
+            aid, cls = line.strip().split(' ')
+            reverse[int(aid)] = cls
+
+
+    ##### Compute Proportion of incorrect predictions and save to csv ######
+    path_annts = os.path.join(cfg['root_data'], 'annotations')
+
+    eval_type = cfg['eval_type']
+    if eval_type == 'AVA_ASD':
+        print('incomplete function')
+    elif eval_type == 'AVA_AL':
+        print('incomplete function')
+    elif eval_type == 'AS':
+      total = None
+      for video_id, pred in preds:
+          # Get a list of ground-truth action labels
+          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f: 
+              label = [line.strip() for line in f]
+
+          data = pd.DataFrame(data=zip(label, pred), columns=['true', 'pred'])
+          proportion_correct = data.groupby('true').apply(lambda x: (x.true == x.pred).sum()/x.true.count()).reset_index(drop=False).rename(columns={'true': 'action', 0: video_id}) # num of correct predictions over total predictions
+
+          if total is None:
+              total = proportion_correct
+          else:
+              total = total.merge(proportion_correct, on='action')
+            
+ 
+      total.to_csv(f'results/{cfg["exp_name"]}/individual_results.csv', index=False)
+      total.set_index('action', inplace=True)
+      means = total.mean(axis=1).reset_index(drop=False).rename(columns={0: 'mean'})
+      stds = total.std(axis=1).reset_index(drop=False).rename(columns={0: 'standard deviation'})
+      
+      stats = means.merge(stds, on='action')
+      stats.to_csv(f'results/{cfg["exp_name"]}/aggregated_results.csv', index=False)
+
+
+      #####  PLOT FALSE PREDICTIONS #####
+      # now for each class, get the counts of incorrect predictions for each other class
+      incorrect_counts = np.zeros([len(actions), len(actions)])
+      label_idx_map = actions
+      for video_id, pred in preds:
+          if (video_id + '.txt') not in os.listdir(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth')):
+               print(f'Skipping {video_id}')
+               continue
+          
+          # Get a list of ground-truth action labels
+          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f: 
+              label = [line.strip() for line in f]
+
+          data = pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).set_index('true')
+
+          # iterate over each class
+          for i in data.index:
+              incorrect_label = data.loc[i, 'pred'].values[0]  
+              incorrect_counts[label_idx_map[i], label_idx_map[incorrect_label]] += 1
+          
+      df = pd.DataFrame(incorrect_counts)
+      df.index= list(label_idx_map.keys())
+      df.columns = list(label_idx_map.keys())
+      df = df.div(df.sum(axis=0)) # compute proportion of incorrect predictions for each class
+
+      # plot heatmap of incorrect predictions
+      sns.heatmap(df, annot=False)
+      plt.ylabel('True Label')
+      plt.xlabel('Predicted Label')
+      plt.title('Proportion of Predicted Labels for each Class')
+
+          # Note to self -> aggregate across
+      plt.savefig(f'results/{cfg["exp_name"]}/heatmap_incorrect_predictions', bbox_inches='tight')
+
+    return

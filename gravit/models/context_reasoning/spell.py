@@ -42,13 +42,14 @@ class SPELL(Module):
         self.num_modality = cfg['num_modality']
         channels = [cfg['channel1'], cfg['channel2']]
         final_dim = cfg['final_dim']
+        input_dim = cfg['input_dim']
         num_att_heads = cfg['num_att_heads']
         dropout = cfg['dropout']
 
         if self.use_spf:
             self.layer_spf = Linear(-1, cfg['proj_dim']) # projection layer for spatial features
 
-        self.layer011 = Linear(-1, channels[0])
+        self.layer011 = Linear(input_dim, channels[0]) 
         if self.num_modality == 2:
             self.layer012 = Linear(-1, channels[0])
 
@@ -74,6 +75,14 @@ class SPELL(Module):
         self.layer32 = SAGEConv(channels[1]*num_att_heads, final_dim)
         self.layer33 = SAGEConv(channels[1]*num_att_heads, final_dim)
 
+        # For TESTING FEATURES - Replace SAGEConv layers with MLP layers
+        # self.mlp_head = Sequential(
+        #     Linear(channels[1]*num_att_heads, 456), 
+        #     ReLU(),
+        #     Dropout(dropout),
+        #     Linear(456, final_dim)
+        # )
+
         if self.use_ref:
             self.layer_ref1 = Refinement(final_dim)
             self.layer_ref2 = Refinement(final_dim)
@@ -81,6 +90,7 @@ class SPELL(Module):
 
 
     def forward(self, x, edge_index, edge_attr, c=None):
+
         feature_dim = x.shape[1]
 
         if self.use_spf:
@@ -99,6 +109,7 @@ class SPELL(Module):
 
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]
+        
 
         # Forward-graph stream
         x1 = self.layer11(x, edge_index_f)
@@ -134,6 +145,11 @@ class SPELL(Module):
         x2 = self.layer32(x2, edge_index_b)
         x3 = self.layer33(x3, edge_index)
 
+        # # Replace SAGEConv layers with MLP layers
+        # x1 = self.mlp_head(x1)
+        # x2 = self.mlp_head(x2)
+        # x3 = self.mlp_head(x3)
+
         out = x1+x2+x3
 
         if self.use_ref:
@@ -141,6 +157,26 @@ class SPELL(Module):
             xr1 = self.layer_ref1(torch.softmax(xr0, dim=1))
             xr2 = self.layer_ref2(torch.softmax(xr1, dim=1))
             xr3 = self.layer_ref3(torch.softmax(xr2, dim=1))
-            out = torch.stack((xr0, xr1, xr2, xr2), dim=0).squeeze(1).transpose(2, 1).contiguous()
+            out = torch.stack((xr0, xr1, xr2, xr3), dim=0).squeeze(1).transpose(2, 1).contiguous()
 
         return out
+
+
+
+class SimpleMLP(Module):
+    def __init__(self, cfg):
+        input_dim = cfg['input_dim']
+        final_dim = cfg['final_dim']
+        hidden_size = 1056
+        super(SimpleMLP, self).__init__()
+        self.fc1 = Linear(input_dim, hidden_size)  # First fully connected layer
+        self.relu = ReLU()                          # ReLU activation function
+        self.fc2 = Linear(hidden_size, final_dim)
+
+        
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
+
