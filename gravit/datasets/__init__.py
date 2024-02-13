@@ -1,1 +1,2 @@
-from .dataset_context_reasoning import GraphDataset, EgoExoOmnivoreTrainDataset, EgoExoOmnivoreValDataset
+from .dataset_context_reasoning import GraphDataset
+from .datasets_naive import EgoExoOmnivoreDataset

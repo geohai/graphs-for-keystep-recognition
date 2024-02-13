@@ -2,11 +2,11 @@ import os
 import yaml
 import torch
 import torch.optim as optim
-from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
 from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
-from gravit.datasets import GraphDataset
+from gravit.datasets import EgoExoOmnivoreDataset
 
 
 def train(cfg):
@@ -34,15 +34,18 @@ def train(cfg):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
-    # Load checkpoint weights
-    checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt'
+
+    ############### Load checkpoint weights ###############
+    checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt' 
     checkpoint = torch.load(checkpoint_path)
-    # print(checkpoint)
+    ###############
+
     model.load_state_dict(checkpoint)
 
-    train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
-    val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
-   
+    ## Use the EgoExoOmnivore dataset
+    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], eval_mode=False), batch_size=cfg['batch_size'], shuffle=True, num_workers=26)
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=False), batch_size=cfg['batch_size'], shuffle=False, num_workers=26)
+
     # Prepare the experiment
     loss_func = get_loss_func(cfg)
     loss_func_val = get_loss_func(cfg, 'val')
@@ -62,18 +65,18 @@ def train(cfg):
         loss_sum = 0.
         for data in train_loader:
             optimizer.zero_grad()
+         
+            x, y = data
+            x = x.to(device)
+            y = y.to(device)
 
-            x, y = data.x.to(device), data.y.to(device)
-            edge_index = data.edge_index.to(device)
-            edge_attr = data.edge_attr.to(device)
-            c = None
-            if cfg['use_spf']:
-                c = data.c.to(device)
-
-            logits = model(x, edge_index, edge_attr, c)
-            
+            logits = model(x)
+            logits = logits.squeeze(1)
+                
+            # print(logits.dtype, y.dtype)
+            # print(logits.shape, y.shape)
             loss = loss_func(logits, y)
-    
+            # print(loss)
             loss.backward()
             loss_sum += loss.item()
             optimizer.step()
@@ -109,15 +112,14 @@ def val(val_loader, use_spf, model, device, loss_func):
     loss_sum = 0
     with torch.no_grad():
         for data in val_loader:  
-            x, y = data.x.to(device), data.y.to(device)
-            edge_index = data.edge_index.to(device)
-            edge_attr = data.edge_attr.to(device)
-            c = None
-            if cfg['use_spf']:
-                c = data.c.to(device)
-
-            logits = model(x, edge_index, edge_attr, c)
-
+           
+            x, y = data
+            x = x.to(device)
+            y = y.to(device)
+          
+            logits = model(x)
+            logits = logits.squeeze(1)
+               
             loss = loss_func(logits, y)
             loss_sum += loss.item()
 

@@ -1,5 +1,5 @@
 from .context_reasoning import *
-
+from .naive import *
 
 def build_model(cfg, device):
     """

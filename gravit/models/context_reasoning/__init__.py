@@ -1,1 +1,1 @@
-from .spell import SPELL, SimpleMLP
+from .spell import SPELL

@@ -89,7 +89,6 @@ def get_formatted_preds(cfg, logits, g, data_dict):
         # Upsample the predictions to fairly compare with the ground-truth labels
         preds = []
         for pred in tmp:
-            # print(data_dict['actions'])
             preds.extend([data_dict['actions'][pred]] * cfg['sample_rate'])
 
         # Pair the final predictions with the video_id
@@ -100,19 +99,15 @@ def get_formatted_preds(cfg, logits, g, data_dict):
     return preds
 
 
-
 def get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict):
     """
     This data is handled differently because the downsampling is done with windows and not a clean downsampling rate.
+    For now, do not deal with the last window.
     """
 
     # Path to the annotations
     (g,) = g
     video_id = data_dict['all_ids'][g]
-    path_annts = os.path.join(cfg['root_data'], 'annotations')
-    with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-            label = [line.strip() for line in f]
-    target_length = len(label)
 
     # get predictions
     tmp = logits
@@ -124,23 +119,49 @@ def get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict):
     # Upsample the predictions to fairly compare with the ground-truth labels
     preds = []
     for pred in tmp:
-        # upsampled = [data_dict['actions'][pred]] * 16
-        preds.extend([data_dict['actions'][pred]] * 16)
+        preds.extend([data_dict['actions'][pred]] * 16) # omnivore features have fixed stride rate of 16 frames at 30fps (16/30 seconds)
 
-    num_to_extend = target_length - len(preds)
-    if num_to_extend >= 32:
-        print('Issue upsampling labels.')
-        # raise ValueError
-        print(f'Extending preds by {num_to_extend} frames')
-        print(f'Target length: {target_length}')
-    preds.extend([data_dict['actions'][pred]] * num_to_extend)
-
+    ## If the last window extends past length of video feats, they adjust the last window 
+    ## so that the right edge is the end of the video and the left edge may overlap with the previous window
+    ## we don't know the length of the original video (unless we load the original annotations...) 
+    ## FOR NOW ignore this and effectively leave out the last window. Must crop
+    
+    ## target_length is the length of the groundTruth annotations....
+    # num_to_extend = target_length - len(preds)
+    # if num_to_extend >= 32:
+    #     print('Issue upsampling labels.')
+    #     # raise ValueError
+    #     print(f'Extending preds by {num_to_extend} frames')
+    #     print(f'Target length: {target_length}')
+    # preds.extend([data_dict['actions'][pred]] * num_to_extend)
     # print(f'Length of preds: {len(preds)} | Target length: {target_length} | Video ID: {video_id}')
 
     # Pair the final predictions with the video_id
     preds = [(video_id, preds)]
 
-    
-
     return preds
 
+
+def get_formatted_preds_framewise(cfg, logits, video_ids, frame_nums, data_dict):
+    """
+    This function is for the naive non-graph approach where samples are individual (frame feature + frame label) pairs.
+    Given the input batch (video_ids + frame_nums), the function returns the corresponding formatted predictions.
+    """
+
+    preds = []
+    for i, (video_id, frame_num) in enumerate(zip(video_ids, frame_nums)):
+        # get predictions
+        tmp = logits[i].unsqueeze(0)
+        if cfg['use_ref']:
+            tmp = logits[-1]
+
+        tmp = torch.softmax(tmp.detach().cpu(), dim=1).max(dim=1)[1].tolist()
+
+        pred = data_dict['actions'][tmp[0]] # tmp has only 1 element
+
+        vals = (video_id, frame_num, pred)
+
+        preds.append(vals)
+
+    print(f'Length of preds: {len(preds)}')
+    return preds

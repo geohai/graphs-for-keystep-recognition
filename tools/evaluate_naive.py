@@ -2,11 +2,11 @@ import os
 import yaml
 import torch
 import argparse
-from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
 from gravit.utils.parser import get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model
-from gravit.datasets import GraphDataset
+from gravit.datasets import EgoExoOmnivoreDataset
 from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds, get_formatted_preds_egoexo_omnivore, get_formatted_preds_framewise
 from gravit.utils.eval_tool import get_eval_score, plot_predictions, error_analysis
 
@@ -33,8 +33,8 @@ def evaluate(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
-   
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=True), batch_size=cfg['batch_size'], shuffle=False, num_workers=30)
+
     num_val_graphs = len(val_loader)
 
     # Load the trained model
@@ -57,32 +57,22 @@ def evaluate(cfg):
         print(f'Batch size: {cfg["batch_size"]}')
         
         for i, data in enumerate(val_loader, 1):
-            g = data.g.tolist()
-            x = data.x.to(device)
-            y = data.y.to(device) # julia added this
-            edge_index = data.edge_index.to(device)
-            edge_attr = data.edge_attr.to(device)
-            c = None
-            if cfg['use_spf']:
-                c = data.c.to(device)
+            x, y, video_id, frame_num = data
+            x = x.to(device)
+            y = y.to(device)
+            g = None
 
-            logits = model(x, edge_index, edge_attr, c)
-            
+            logits = model(x)
+            logits = logits.squeeze(1)
+
             # Change the format of the model output
             if 'egoexo-omnivore' in cfg['dataset']:
-                preds = get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict)
-                # TODO: double check the lengths of preds and y
-                # preds are upsampled and y is downsampled right???
-                if len(preds) != len(y):
-                    print(f'Preds and labels are not the same length: {len(preds)} vs {len(y)}')
-                    if len(y) - len(preds) >= 32:
-                        raise ValueError(f'Preds and labels are not within 1 window (32 frames) of the same length: {len(preds)} vs {len(y)}')
-                    else:
-                        # If difference in length is less than 32 then we just drop the last window from y (this is a alignment issue from upsampling the labels)
-                        y = y[:len(preds)]
-
+                preds = get_formatted_preds_framewise(cfg, logits, video_id, frame_num, data_dict)
+              
             else:
-                preds = get_formatted_preds(cfg, logits, g, data_dict)
+                # TODO: probably need to fix this
+                print('Not implemented yet')
+                # preds = get_formatted_preds(cfg, logits, g, data_dict)
 
             # plot_predictions(cfg, preds)
             preds_all.extend(preds)

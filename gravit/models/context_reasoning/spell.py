@@ -75,14 +75,6 @@ class SPELL(Module):
         self.layer32 = SAGEConv(channels[1]*num_att_heads, final_dim)
         self.layer33 = SAGEConv(channels[1]*num_att_heads, final_dim)
 
-        # For TESTING FEATURES - Replace SAGEConv layers with MLP layers
-        # self.mlp_head = Sequential(
-        #     Linear(channels[1]*num_att_heads, 456), 
-        #     ReLU(),
-        #     Dropout(dropout),
-        #     Linear(456, final_dim)
-        # )
-
         if self.use_ref:
             self.layer_ref1 = Refinement(final_dim)
             self.layer_ref2 = Refinement(final_dim)
@@ -160,23 +152,3 @@ class SPELL(Module):
             out = torch.stack((xr0, xr1, xr2, xr3), dim=0).squeeze(1).transpose(2, 1).contiguous()
 
         return out
-
-
-
-class SimpleMLP(Module):
-    def __init__(self, cfg):
-        input_dim = cfg['input_dim']
-        final_dim = cfg['final_dim']
-        hidden_size = 1056
-        super(SimpleMLP, self).__init__()
-        self.fc1 = Linear(input_dim, hidden_size)  # First fully connected layer
-        self.relu = ReLU()                          # ReLU activation function
-        self.fc2 = Linear(hidden_size, final_dim)
-
-        
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        return x
-

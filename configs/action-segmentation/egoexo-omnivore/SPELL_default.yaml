@@ -1,0 +1,21 @@
+exp_name: SPELL_AS_default
+model_name: SimpleMLP #SPELL
+graph_name: mlp #egoexo-omnivore-gopro_10_10 # name of saved dir in data/graphs
+dataset: egoexo-omnivore-aria
+loss_name: ce #_ref
+use_spf: False
+use_ref: False
+w_ref: 5
+num_modality: 1
+channel1: 64
+channel2: 64
+final_dim: 497  # Number of classes
+input_dim: 1536  # Input dimension of features
+num_att_heads: 4
+dropout: 0.2
+lr: 0.005
+wd: 0
+batch_size: 15000
+sch_param: 5
+num_epoch: 45
+sample_rate: 1

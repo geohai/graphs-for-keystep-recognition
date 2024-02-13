@@ -6,12 +6,8 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool
 from torch_geometric.data import Data
-import scipy
 from gravit.models.fusion.multihead_attention import *
-from gravit.utils.data_loader import load_and_fuse_modalities, load_labels
-import re
-
-
+from gravit.utils.data_loader import load_and_fuse_modalities, load_labels, crop_to_start_and_end
 
 
 def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids):
@@ -23,6 +19,8 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     skip = args.skip_factor
 
     video_id = os.path.splitext(os.path.basename(data_file))[0]
+
+    # If using multiview features, remove the view number from the video_id
     if args.is_multiview is not None and args.is_multiview == True:
         video_id = video_id[0:-2] 
 
@@ -31,19 +29,10 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     label = load_labels(video_id, actions, root_data=args.root_data, dataset=args.dataset, sample_rate=args.sample_rate, feature=feature)
     num_frame = feature.shape[0]
 
-
-    # crop to start and end
+    # Crop features and labels to remove action_start and action_end
     if args.crop == True:
-        begin_label_index = label.index(next(x for x in label if x != "action_start"))
-        feature = feature[begin_label_index:]
-        label = label[begin_label_index:]
-
-        end_label_index = label.index(next(x for x in label if x != "action_end"))
-        feature = feature[:end_label_index]
-        label = label[:end_label_index]
+        feature, label = crop_to_start_and_end(feature, label)
         num_frame = feature.shape[0]
-        
-
 
     # Get a list of the edge information: these are for edge_index and edge_attr
     node_source = []
@@ -114,7 +103,6 @@ if __name__ == "__main__":
         for line in f:
             aid, cls = line.strip().split(' ')
             actions[cls] = int(aid)
-    # print (actions)
 
     # Get a list of all video ids
     all_ids = sorted([os.path.splitext(v)[0] for v in os.listdir(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth'))])
@@ -123,7 +111,7 @@ if __name__ == "__main__":
     print ('This process might take a few minutes')
 
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
-    # print(list_splits)
+
     for split in list_splits:
         # Get a list of training video ids
         with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
@@ -135,6 +123,7 @@ if __name__ == "__main__":
 
         list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*.npy')))
 
+        # If using multiview features, only get the features from the first view to feed into function. Later code will handle getting all view features and combining. 
         if args.is_multiview:
             list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*_0.npy')))
 
