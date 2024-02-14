@@ -13,6 +13,7 @@ from matplotlib.patches import Patch
 import seaborn as sns
 from sklearn.metrics import f1_score
 from gravit.utils.data_loader import crop_to_start_and_end
+import shutil
 
 from collections import defaultdict
 import csv
@@ -25,7 +26,7 @@ import os
 
 def remove_directory(directory):
   try:
-    os.rmdir(directory)
+    shutil.rmtree(directory)
     print(f"Directory '{directory}' removed successfully.")
   except OSError as e:
     print(f"Error: {directory} : {e.strerror}")

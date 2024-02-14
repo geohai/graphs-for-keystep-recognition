@@ -137,11 +137,6 @@ class SPELL(Module):
         x2 = self.layer32(x2, edge_index_b)
         x3 = self.layer33(x3, edge_index)
 
-        # # Replace SAGEConv layers with MLP layers
-        # x1 = self.mlp_head(x1)
-        # x2 = self.mlp_head(x2)
-        # x3 = self.mlp_head(x3)
-
         out = x1+x2+x3
 
         if self.use_ref:

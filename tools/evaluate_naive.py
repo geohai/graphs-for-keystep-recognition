@@ -33,7 +33,7 @@ def evaluate(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=True), batch_size=cfg['batch_size'], shuffle=False, num_workers=30)
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=True), batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
 
     num_val_graphs = len(val_loader)
 
@@ -51,7 +51,7 @@ def evaluate(cfg):
     logger.info('Evaluation process started')
 
     preds_all = []
-    labels_all = []
+    # labels_all = []
     with torch.no_grad():
         print(f'Num batches: {len(val_loader)}')
         print(f'Batch size: {cfg["batch_size"]}')
@@ -59,8 +59,8 @@ def evaluate(cfg):
         for i, data in enumerate(val_loader, 1):
             x, y, video_id, frame_num = data
             x = x.to(device)
-            y = y.to(device)
-            g = None
+            # y = y.to(device)÷
+            # g = None
 
             logits = model(x)
             logits = logits.squeeze(1)
@@ -76,7 +76,7 @@ def evaluate(cfg):
 
             # plot_predictions(cfg, preds)
             preds_all.extend(preds)
-            labels_all.extend(y)
+            # labels_all.extend(y÷)
 
             logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
 
@@ -84,7 +84,7 @@ def evaluate(cfg):
     # Compute the evaluation score
     # error_analysis(cfg, preds_all)
     logger.info('Computing the evaluation score')
-    eval_score = get_eval_score(cfg, preds_all, labels_all)
+    eval_score = get_eval_score(cfg, preds_all)
     
     
     logger.info(f'{cfg["eval_type"]} evaluation finished: {eval_score}')

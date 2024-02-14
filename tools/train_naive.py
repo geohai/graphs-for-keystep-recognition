@@ -35,16 +35,16 @@ def train(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    ############### Load checkpoint weights ###############
-    checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt' 
-    checkpoint = torch.load(checkpoint_path)
+    # ############### Load checkpoint weights ###############
+    # checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt' 
+    # checkpoint = torch.load(checkpoint_path)
+    # model.load_state_dict(checkpoint)
     ###############
 
-    model.load_state_dict(checkpoint)
 
     ## Use the EgoExoOmnivore dataset
-    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], eval_mode=False), batch_size=cfg['batch_size'], shuffle=True, num_workers=26)
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=False), batch_size=cfg['batch_size'], shuffle=False, num_workers=26)
+    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=False, eval_mode=False), batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=False), batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
 
     # Prepare the experiment
     loss_func = get_loss_func(cfg)
