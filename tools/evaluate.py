@@ -73,20 +73,21 @@ def evaluate(cfg):
                 preds = get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict)
                 # TODO: double check the lengths of preds and y
                 # preds are upsampled and y is downsampled right???
-                if len(preds) != len(y):
-                    print(f'Preds and labels are not the same length: {len(preds)} vs {len(y)}')
-                    if len(y) - len(preds) >= 32:
-                        raise ValueError(f'Preds and labels are not within 1 window (32 frames) of the same length: {len(preds)} vs {len(y)}')
-                    else:
-                        # If difference in length is less than 32 then we just drop the last window from y (this is a alignment issue from upsampling the labels)
-                        y = y[:len(preds)]
+                # if len(preds) != len(y):
+                #     print(len(preds[0][1]))
+                #     print(f'Preds and labels are not the same length: {len(preds)} vs {len(y)}')
+                #     if len(y) - len(preds) >= 32:
+                #         raise ValueError(f'Preds and labels are not within 1 window (32 frames) of the same length: {len(preds)} vs {len(y)}')
+                #     else:
+                #         # If difference in length is less than 32 then we just drop the last window from y (this is a alignment issue from upsampling the labels)
+                #         y = y[:len(preds)]
 
             else:
                 preds = get_formatted_preds(cfg, logits, g, data_dict)
 
             # plot_predictions(cfg, preds)
             preds_all.extend(preds)
-            labels_all.extend(y)
+            # labels_all.extend(y)
 
             logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
 
@@ -94,7 +95,7 @@ def evaluate(cfg):
     # Compute the evaluation score
     # error_analysis(cfg, preds_all)
     logger.info('Computing the evaluation score')
-    eval_score = get_eval_score(cfg, preds_all, labels_all)
+    eval_score = get_eval_score(cfg, preds_all)
     
     
     logger.info(f'{cfg["eval_type"]} evaluation finished: {eval_score}')

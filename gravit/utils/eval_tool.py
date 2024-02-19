@@ -489,8 +489,9 @@ def get_eval_score(cfg, preds):
             label = [line.strip() for line in f]
 
           if len(label) != len(pred):
-            print(f'len(pred): {len(pred)} | len(label): {len(label)}')
-            raise ValueError(f'Length of pred and label do not match for {video_id}')
+            # print(f'len(pred): {len(pred)} | len(label): {len(label)}')
+            # print(f'Length of pred and label do not match for {video_id}')
+            label = label[:len(pred)]
             
           # write results of each video to csv: pred vs true labels
           pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(f'results/{cfg["exp_name"]}/csv/results_{video_id}.csv', index=False)

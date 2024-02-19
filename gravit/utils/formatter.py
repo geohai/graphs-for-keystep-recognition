@@ -138,6 +138,8 @@ def get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict):
 
     # Pair the final predictions with the video_id
     preds = [(video_id, preds)]
+    # print(preds)
+    # quit()
 
     return preds
 

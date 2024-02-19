@@ -6,7 +6,6 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool
 from torch_geometric.data import Data
-from gravit.models.fusion.multihead_attention import *
 from gravit.utils.data_loader import load_and_fuse_modalities, load_labels, crop_to_start_and_end
 
 
@@ -25,8 +24,8 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         video_id = video_id[0:-2] 
 
     # Load the features and labels
-    feature = load_and_fuse_modalities(data_file, combine_method, video_id, actions, root_data=args.root_data, dataset=args.dataset, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
-    label = load_labels(video_id, actions, root_data=args.root_data, dataset=args.dataset, sample_rate=args.sample_rate, feature=feature)
+    feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.dataset, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
+    label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, dataset=args.dataset, sample_rate=args.sample_rate, feature=feature)
     num_frame = feature.shape[0]
 
     # Crop features and labels to remove action_start and action_end
@@ -84,7 +83,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Default paths for the training process
     parser.add_argument('--root_data',     type=str,   help='Root directory to the data', default='./data')
-    parser.add_argument('--dataset',       type=str,   help='Name of the dataset', default='50salads')
+    parser.add_argument('--dataset',       type=str,   help='Name of the dataset (annotation dir)', default='50salads')
     parser.add_argument('--features',      type=str,   help='Name of the features', required=True)
 
     # Hyperparameters for the graph generation
@@ -121,13 +120,12 @@ if __name__ == "__main__":
         os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
         os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
 
-        list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*.npy')))
+        list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*.npy')))
 
         # If using multiview features, only get the features from the first view to feed into function. Later code will handle getting all view features and combining. 
         if args.is_multiview:
-            list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*_0.npy')))
+            list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*_0.npy')))
 
-        
         with Pool(processes=35) as pool:
             pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
 

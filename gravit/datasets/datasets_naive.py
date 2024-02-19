@@ -86,7 +86,7 @@ class EgoExoOmnivoreDataset(Dataset):
         label = label_one_hot
 
         feature = torch.tensor(feature).unsqueeze(0)  # Add batch dimension
-        label = torch.tensor(label, dtype=torch.float)  # Add batch dimension
+        label = label.clone().detach().to(dtype=torch.float)  # Add batch dimension
 
         if self.eval_mode:
             return feature, label, video_id, frame_num

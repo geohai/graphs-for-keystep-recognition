@@ -34,12 +34,13 @@ def train(cfg):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
-    # Load checkpoint weights
-    checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt'
-    checkpoint = torch.load(checkpoint_path)
-    # print(checkpoint)
-    model.load_state_dict(checkpoint)
 
+    # # Load checkpoint weights
+    # checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt'
+    # checkpoint = torch.load(checkpoint_path)
+    # # print(checkpoint)
+    # model.load_state_dict(checkpoint)
+    print(path_graphs)
     train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
     val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
