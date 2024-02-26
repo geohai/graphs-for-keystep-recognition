@@ -35,11 +35,11 @@ def train(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    # # ############### Load checkpoint weights ###############
-    # checkpoint_path = 'results/MLP_AS_aria-lr_0.0005/ckpt_best.pt' 
-    # checkpoint = torch.load(checkpoint_path)
-    # model.load_state_dict(checkpoint)
-    # ###############
+    # ############### Load checkpoint weights ###############
+    checkpoint_path = 'results/MLP_AS_aria-lr_0.0005/ckpt_best.pt' 
+    checkpoint = torch.load(checkpoint_path)
+    model.load_state_dict(checkpoint)
+    ###############
 
 
     ## Use the EgoExoOmnivore dataset

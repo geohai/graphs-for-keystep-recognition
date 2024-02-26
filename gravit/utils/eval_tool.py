@@ -444,7 +444,7 @@ def get_eval_score_naive(path_annts, cfg, preds):
     str_score = f'(Acc) {acc*100:.2f}%'
 
     # TODO: Modify this f1 score computation to use compare_segmentation()
-    f1 = f1_score(y_true, y_preds, average='weighted')
+    f1 = f1_score(y_true, y_preds, average='micro')
     str_score += f', (F1) {f1*100:.2f}%'
     
     return str_score

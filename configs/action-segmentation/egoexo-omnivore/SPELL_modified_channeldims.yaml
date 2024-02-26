@@ -5,7 +5,7 @@ dataset: egoexo-omnivore-aria
 loss_name: ce_ref
 use_spf: False
 use_ref: true
-w_ref: 5
+w_ref: 1
 num_modality: 1
 channel1: 1300
 channel2: 600
