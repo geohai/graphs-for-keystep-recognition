@@ -1,0 +1,4 @@
+pyyaml
+pandas
+torch
+torch-geometric>=2.0.3
