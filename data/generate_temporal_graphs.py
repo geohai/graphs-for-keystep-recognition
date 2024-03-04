@@ -22,11 +22,25 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # If using multiview features, remove the view number from the video_id
     if args.is_multiview is not None and args.is_multiview == True:
         video_id = video_id[0:-2] 
-
     # Load the features and labels
     feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.dataset, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
-    label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, dataset=args.dataset, sample_rate=args.sample_rate, feature=feature)
+    print(f'feature shape: {feature.shape}')
+    print(feature)
+    print('---')
+
+    # print('Line 28 - possibly fix?')
+    video_id = video_id.rsplit('_', 1)[0] # Added this for segmentwise
+    label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, dataset=args.dataset, 
+                        sample_rate=args.sample_rate, feature=feature, load_raw=True)
     num_frame = feature.shape[0]
+
+    print('feature: ')
+    print(feature.shape)
+    print('label: ')
+    print((len(label)))
+    print(label)
+
+    print('---------')
 
     # Crop features and labels to remove action_start and action_end
     if args.crop == True:
@@ -126,7 +140,7 @@ if __name__ == "__main__":
         if args.is_multiview:
             list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*_0.npy')))
 
-        with Pool(processes=35) as pool:
+        with Pool(processes=1) as pool:
             pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
 
         print (f'Graph generation for {split} is finished')

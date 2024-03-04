@@ -1,14 +1,14 @@
-exp_name: gravit-aria-base #MLP_AS_aria-lr_0.0005
+exp_name: gravit-aria-segmentwise # gravit-aria-base #MLP_AS_aria-lr_0.0005
 model_name: SPELL # SimpleMLP 
-graph_name: egoexo-omnivore-aria_10_10 # name of saved dir in data/graphs
-dataset: egoexo-omnivore-aria
+graph_name: egoexo-omnivore-segmentwise_10_10 # name of saved dir in data/graphs
+dataset: egoexo-omnivore-segmentwise
 loss_name: ce #_ref
 use_spf: False
 use_ref: False
 w_ref: 5
 num_modality: 1
-channel1: 64
-channel2: 64
+channel1: 1300
+channel2: 600
 final_dim: 497  # Number of classes
 input_dim: 1536  # Input dimension of features
 num_att_heads: 4

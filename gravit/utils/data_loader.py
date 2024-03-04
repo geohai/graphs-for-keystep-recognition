@@ -109,9 +109,22 @@ def load_egoexo_omnivideo_integer_labels(video_id, actions, root_data='../data',
     is 32 frames, and the stride is 16 frames. Aggregate the labels for these windows by taking the mode of the labels in each window.
     """
     # Get a list of ground-truth action labels
-    with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
-        label = [actions[line.strip()] for line in f]
-        
+    try:
+        with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
+            label = [actions[line.strip()] for line in f]
+            print(label)
+            print(len(label))
+            
+    except:
+        print(f'Labels not found. ')
+        return
+        # video_id = video_id.rsplit('_', 1)[0]
+        # print(video_id)
+        # with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
+        #     label = [actions[line.strip()] for line in f]
+        # print('Success')
+
+
     if load_raw == False:
         new_labels = [scipy.stats.mode(label[i:i+32])[0] for i in range(0, len(label), 16) if i+32 < len(label)]
         # add last label to the end
@@ -119,7 +132,7 @@ def load_egoexo_omnivideo_integer_labels(video_id, actions, root_data='../data',
             last_window = label[-32:]
             new_labels.append(scipy.stats.mode(last_window)[0])
 
-    label = new_labels
+        label = new_labels
 
     return label
 

@@ -7,7 +7,7 @@ from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
 from gravit.datasets import GraphDataset
-
+import numpy as np
 
 def train(cfg):
     """
@@ -71,7 +71,13 @@ def train(cfg):
             if cfg['use_spf']:
                 c = data.c.to(device)
 
+            print(f'x: {x}')
             logits = model(x, edge_index, edge_attr, c)
+
+            print(y.shape)
+            print(logits.shape)
+            print(y)
+            print(logits)
             
             loss = loss_func(logits, y)
     
