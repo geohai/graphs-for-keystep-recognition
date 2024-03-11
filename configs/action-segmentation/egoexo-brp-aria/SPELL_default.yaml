@@ -18,3 +18,8 @@ batch_size: 1
 sch_param: 5
 num_epoch: 150
 sample_rate: 1
+crop: False
+eval_type: AS
+label_loading_strategy: regular
+
+tauf: 10 # Hyperparameter adds edge every n nodes, can play with

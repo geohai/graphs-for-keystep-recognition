@@ -1,0 +1,27 @@
+exp_name: MLP_AS_egoexo-brp-aria
+model_name: SimpleMLP
+graph_name: mlp
+feature_dataset: egoexo-brp-aria # name of the directory in features/ where the features are stored
+annotation_dataset: egoexo-brp-aria
+loss_name: ce #_ref
+use_spf: false
+use_ref: false
+w_ref: 5
+num_modality: 1
+# channel1: 1024
+# channel2: 512
+final_dim: 170 # Number of classes
+input_dim: 756
+# num_att_heads: 4
+dropout: 0.2
+lr: 0.0001
+wd: 0
+batch_size: 5000
+sch_param: 5
+num_epoch: 50
+sample_rate: 1
+crop: False
+eval_type: AS
+label_loading_strategy: regular
+
+tauf: 10 # Hyperparameter adds edge every n nodes, can play with
