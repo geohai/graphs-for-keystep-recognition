@@ -25,6 +25,11 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
 
     # Load the features and labels
     feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.dataset, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
+    print("generate_temporal_graph")
+    print("feature :", feature)
+    print("raw video_id :", video_id)
+    video_id = video_id.rsplit('_', 1)[0] #Blake: Added this line
+    print("split video_id :", video_id)
     label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, dataset=args.dataset, sample_rate=args.sample_rate, feature=feature)
     num_frame = feature.shape[0]
 

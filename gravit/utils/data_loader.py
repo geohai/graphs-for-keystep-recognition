@@ -35,7 +35,7 @@ def load_and_fuse_modalities(data_file, combine_method, dataset='50salads', samp
         feature = np.load(data_file)
 
     # EgoExo Swin OmnivoreL Features
-    elif 'egoexo-omnivore' in dataset:
+    elif 'egoexo' in dataset: #Blake: Changed to handle egoexo-aria-brp
         # Multiview approach for EgoExo-OmnivoreL -> Load all view features and concatenate
         # TODO: Add argument for multiview graph (rather than concatenate)
         if is_multiview is not None and is_multiview == True:
@@ -97,7 +97,7 @@ def load_and_fuse_modalities(data_file, combine_method, dataset='50salads', samp
 def load_labels(actions, root_data, dataset, video_id, sample_rate=1, feature=None, load_raw=False):
     if dataset == '50salads' or dataset == 'egoexo':
         label = load_and_trim_labels(video_id, actions, root_data=root_data, dataset=dataset, sample_rate=sample_rate, feature=feature)
-    elif 'egoexo-omnivore' in dataset:
+    elif 'egoexo' in dataset: #Blake: Changed for egoexo-aria-brp
         label = load_egoexo_omnivideo_integer_labels(video_id, actions, root_data=root_data, dataset=dataset, feature=feature, load_raw=load_raw)
 
     return label
@@ -145,7 +145,7 @@ def load_accelerometer(id, root_data):
     return accel_features
 
 
-def load_and_trim_labels(video_id, actions, root_data='../data', dataset='50salads', sample_rate=1, feature=None):
+def load_and_trim_labels(video_id, actions, root_data='../data', dataset='50salads', sample_rate=1, feature=None): 
     """
     feature: must input np array or pd dataframe of features to trim the labels to
     This function loads the ground truth annotations for a video, and trims them to match the length of the features.
