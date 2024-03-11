@@ -1,0 +1,25 @@
+exp_name: SPELL_AS_default
+model_name: SPELL
+graph_name: brp-egoexo_10_10 # Bridge Prompt features for egoexo cooking dataset
+dataset: egoexo
+loss_name: ce_ref
+use_spf: False
+use_ref: True
+w_ref: 5
+num_modality: 1
+channel1: 64
+channel2: 64
+final_dim: 327  # Number of classes
+num_att_heads: 4
+dropout: 0.2
+lr: 0.005
+wd: 0
+batch_size: 1
+sch_param: 5
+num_epoch: 150
+sample_rate: 1
+crop: False
+eval_type: AS
+label_loading_strategy: regular
+
+tauf: 10 # Hyperparameter adds edge every n nodes, can play with

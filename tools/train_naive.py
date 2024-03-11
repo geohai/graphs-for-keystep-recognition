@@ -11,7 +11,6 @@ from gravit.models import build_model, get_loss_func
 from gravit.datasets import EgoExoOmnivoreDataset, GraphDataset
 
 
-
 def train(cfg):
     """
     Run the training process given the configuration
@@ -46,9 +45,9 @@ def train(cfg):
 
 
     ## Use the EgoExoOmnivore dataset
-    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=False, eval_mode=False, load_raw_labels=True),
+    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['dataset'], annotations_dataset=cfg['annotations'], validation=False, eval_mode=False, load_raw_labels=True),
                                batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=True, eval_mode=False, load_raw_labels=True), 
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['dataset'], annotations_dataset=cfg['annotations'], validation=True, eval_mode=False, load_raw_labels=True), 
                             batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
 
 

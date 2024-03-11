@@ -3,10 +3,15 @@ import yaml
 import torch
 import torch.optim as optim
 from torch_geometric.loader import DataLoader
+
 from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
 from gravit.datasets import GraphDataset
+
+from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds, get_formatted_preds_egoexo_omnivore, get_formatted_preds_framewise
+from gravit.utils.eval_tool import get_eval_score
+
 import numpy as np
 
 def train(cfg):
@@ -53,6 +58,7 @@ def train(cfg):
     # Run the training process
     logger.info('Training process started')
     print(f'Length of train_loader:', len(train_loader))
+    print(f'Batch size:', cfg['batch_size'])
 
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
@@ -62,6 +68,7 @@ def train(cfg):
         # Train for a single epoch
         loss_sum = 0.
         for data in train_loader:
+            # print('\n--')
             optimizer.zero_grad()
 
             x, y = data.x.to(device), data.y.to(device)
@@ -71,13 +78,16 @@ def train(cfg):
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            print(f'x: {x}')
+            # print(f'x: {x}')
             logits = model(x, edge_index, edge_attr, c)
 
-            print(y.shape)
-            print(logits.shape)
-            print(y)
-            print(logits)
+            # print(y.shape)
+            # print(logits.shape)
+            # print(y)
+            # print(logits)
+            if y.shape[0] != logits.shape[0]:
+                print('Shapes do not match')
+                print(f'x shape is {x.shape}')
             
             loss = loss_func(logits, y)
     
@@ -94,6 +104,7 @@ def train(cfg):
         # Get the validation loss
         loss_val = val(val_loader, cfg['use_spf'], model, device, loss_func_val)
         print(loss_val)
+       
 
         # Save the best-performing checkpoint
         if loss_val < min_loss_val:
@@ -113,10 +124,13 @@ def val(val_loader, use_spf, model, device, loss_func):
     """
 
     model.eval()
+    data_dict = get_formatting_data_dict(cfg)
     loss_sum = 0
+    predictions = []
     with torch.no_grad():
         for data in val_loader:  
             x, y = data.x.to(device), data.y.to(device)
+            g = data.g.tolist()
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
             c = None
@@ -127,6 +141,13 @@ def val(val_loader, use_spf, model, device, loss_func):
 
             loss = loss_func(logits, y)
             loss_sum += loss.item()
+
+            # if 'egoexo-omnivore' in cfg['dataset']:
+            #     preds = get_formatted_preds(cfg, logits, g, data_dict)
+            #     predictions.append(preds)
+            
+    # eval_score = get_eval_score(cfg, predictions)
+    # print('Validation f1 score:', eval_score)
 
     return loss_sum / len(val_loader)
 

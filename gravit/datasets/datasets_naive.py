@@ -117,3 +117,4 @@ class EgoExoOmnivoreDataset(Dataset):
         label = [label[i] for i in keep_indices]
 
         return feature, label
+    

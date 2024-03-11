@@ -1,0 +1,25 @@
+exp_name: mlp-aria-segmentwise
+model_name: SimpleMLP
+graph_name: mlp
+dataset: egoexo-omnivore-segmentwise # name of features dataset
+annotations: egoexo-omnivore-segmentwise # name of annotations dataset
+loss_name: ce #_ref
+use_spf: false
+use_ref: false
+w_ref: 5
+num_modality: 1
+# channel1: 1024
+# channel2: 512
+final_dim: 497
+input_dim: 1536
+# num_att_heads: 4
+dropout: 0.2
+lr: 0.01
+wd: 0
+batch_size: 10000
+sch_param: 5
+num_epoch: 45
+sample_rate: 1
+crop: false
+eval_type: AS
+label_loading_strategy: regular

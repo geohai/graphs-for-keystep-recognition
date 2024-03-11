@@ -7,6 +7,16 @@ from functools import partial
 from multiprocessing import Pool
 from torch_geometric.data import Data
 from gravit.utils.data_loader import load_and_fuse_modalities, load_labels, crop_to_start_and_end
+from gravit.utils.parser import get_args, get_cfg
+
+def compute_similarity_metric(node_i, node_j, metric):
+    if metric == 'cosine':
+        return np.dot(node_i, node_j) / (np.linalg.norm(node_i) * np.linalg.norm(node_j))
+    elif metric == 'gaussian':
+        sigma = 2
+        return np.exp(-np.linalg.norm(node_i - node_j) ** 2 / (2 * (sigma ** 2)))
+    elif metric == 'inner_product':
+        return np.dot(node_i, node_j)
 
 
 def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids):
@@ -22,25 +32,14 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # If using multiview features, remove the view number from the video_id
     if args.is_multiview is not None and args.is_multiview == True:
         video_id = video_id[0:-2] 
+
     # Load the features and labels
-    feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.dataset, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
-    print(f'feature shape: {feature.shape}')
-    print(feature)
-    print('---')
-
-    # print('Line 28 - possibly fix?')
+    feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.features, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
+    
     video_id = video_id.rsplit('_', 1)[0] # Added this for segmentwise
-    label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, dataset=args.dataset, 
-                        sample_rate=args.sample_rate, feature=feature, load_raw=True)
+    label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
+                        sample_rate=args.sample_rate, feature=feature, load_raw=True) # load_raw=True for segmentwise, otherwise set to False to get the raw omnivore smapling strategy
     num_frame = feature.shape[0]
-
-    print('feature: ')
-    print(feature.shape)
-    print('label: ')
-    print((len(label)))
-    print(label)
-
-    print('---------')
 
     # Crop features and labels to remove action_start and action_end
     if args.crop == True:
@@ -48,6 +47,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         num_frame = feature.shape[0]
 
     # Get a list of the edge information: these are for edge_index and edge_attr
+    counter_similarity_edges_added = 0
     node_source = []
     node_target = []
     edge_attr = []
@@ -70,6 +70,20 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                     node_source.append(i)
                     node_target.append(j)
                     edge_attr.append(np.sign(frame_diff))
+
+            # Add similarity-based connections
+            if args.similarity_metric is not None and i != j:
+                similarity = compute_similarity_metric(feature[i], feature[j], metric=args.similarity_metric)
+                # print(f'similarity: {similarity}')
+                if similarity > args.similarity_threshold:
+                    # print(f'Adding similarity edge between {i} and {j} with similarity {similarity}')
+                    node_source.append(i)
+                    node_target.append(j)
+                    edge_attr.append(np.sign(frame_diff))  # try 0
+                    counter_similarity_edges_added += 1
+    
+    print(f'{counter_similarity_edges_added} similarity edges | {len(node_source) - counter_similarity_edges_added} | ' + "{:.1f}%".format(counter_similarity_edges_added / len(node_source) * 100) + " % of Total edges")
+
 
     # x: features
     # g: global_id
@@ -97,11 +111,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Default paths for the training process
     parser.add_argument('--root_data',     type=str,   help='Root directory to the data', default='./data')
-    parser.add_argument('--dataset',       type=str,   help='Name of the dataset (annotation dir)', default='50salads')
-    parser.add_argument('--features',      type=str,   help='Name of the features', required=True)
+    parser.add_argument('--dataset',       type=str,   help='Name of the dataset (annotation dir)')
+    parser.add_argument('--features',      type=str,   help='Name of the features', required=False)
+    parser.add_argument('--cfg',      type=str,   help='Path to config file containing parameters. ', required=False)
 
     # Hyperparameters for the graph generation
-    parser.add_argument('--tauf',          type=int,   help='Maximum frame difference between neighboring nodes', required=True)
+    parser.add_argument('--tauf',          type=int,   help='Maximum frame difference between neighboring nodes', required=False)
     parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=10)
     parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
     parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
@@ -109,6 +124,28 @@ if __name__ == "__main__":
     
 
     args = parser.parse_args()
+
+    # load config file
+    if args.cfg is not None:
+        cfg = get_cfg(args)
+        print(cfg)
+        
+
+    if args.features is None:
+        args.features = cfg['feature_dataset']
+    if args.dataset is None:
+        args.dataset = cfg['annotation_dataset']
+    # if args.tauf is None:
+    #     args.tauf = cfg['tauf']
+    # if args.skip_factor is None:
+    #     args.skip_factor = cfg['skip_factor']
+
+    if cfg['tauf'] is not None:
+        args.tauf = cfg['tauf']
+    if cfg['similarity_metric'] is not None:
+        args.similarity_metric = cfg['similarity_metric']
+    if cfg['similarity_threshold'] is not None:
+        args.similarity_threshold = cfg['similarity_threshold']
 
     # Build a mapping from action classes to action ids
     actions = {}
@@ -130,7 +167,8 @@ if __name__ == "__main__":
         with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
             train_ids = [os.path.splitext(line.strip())[0] for line in f]
 
-        path_graphs = os.path.join(args.root_data, f'graphs/{args.features}_{args.tauf}_{args.skip_factor}/{split}')
+        # path_graphs = os.path.join(args.root_data, f'graphs/{args.features}_{args.tauf}_{args.skip_factor}/{split}')
+        path_graphs = os.path.join(args.root_data, f'graphs/{cfg["graph_name"]}/{split}')
         os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
         os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
 
@@ -140,7 +178,7 @@ if __name__ == "__main__":
         if args.is_multiview:
             list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*_0.npy')))
 
-        with Pool(processes=1) as pool:
+        with Pool(processes=35) as pool:
             pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
 
         print (f'Graph generation for {split} is finished')

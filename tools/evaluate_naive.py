@@ -33,7 +33,9 @@ def evaluate(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=True), batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, features_dataset=cfg['dataset'], 
+                                                  annotations_dataset=cfg['annotations'], eval_mode=True, load_raw_labels=True), batch_size=cfg['batch_size'], 
+                                                  shuffle=False, num_workers=128)
 
     num_val_graphs = len(val_loader)
 
