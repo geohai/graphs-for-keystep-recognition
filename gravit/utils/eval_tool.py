@@ -25,11 +25,12 @@ from mycolorpy import colorlist as mcp
 import os
 
 def remove_directory(directory):
-  try:
-    shutil.rmtree(directory)
-    print(f"Directory '{directory}' removed successfully.")
-  except OSError as e:
-    print(f"Error: {directory} : {e.strerror}")
+  if os.path.exists(directory):
+    try:
+      shutil.rmtree(directory)
+      print(f"Directory '{directory}' removed successfully.")
+    except OSError as e:
+      print(f"Error: {directory} : {e.strerror}")
 
 
 def compute_average_precision(precision, recall):
@@ -389,6 +390,7 @@ def compare_segmentation(pred, label, th):
     for i in range(len(pc)):
         inter = np.minimum(pe[i], le) - np.maximum(ps[i], ls)
         union = np.maximum(pe[i], le) - np.minimum(ps[i], ls)
+        print(union)
         IoU = (inter/union) * [pc[i] == lc[j] for j in range(len(lc))]
 
         best_idx = np.array(IoU).argmax()
@@ -414,9 +416,16 @@ def get_eval_score_naive(path_annts, cfg, preds):
 
     for (video_id, frame_num, pred) in preds:
         # Get a list of ground-truth action labels
-        with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-          label = [line.strip() for line in f]
-          label = label[frame_num]
+        try:
+          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+            label = [line.strip() for line in f]
+            label = label[frame_num]
+        except:
+          video_id = video_id.rsplit('_', 1)[0]
+          # print(video_id)
+          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+              label = [line.strip() for line in f]
+              label = label[frame_num]
 
         if cfg['crop']:
            _, label = crop_to_start_and_end(feature=None, label=label)
@@ -459,6 +468,7 @@ def get_eval_score(cfg, preds):
     path_annts = os.path.join(cfg['root_data'], 'annotations')
 
     eval_type = cfg['eval_type']
+    print(eval_type)
     if eval_type == 'AVA_ASD':
         groundtruth = os.path.join(path_annts, 'ava_activespeaker_val_v1.0.csv')
         score = run_evaluation_asd(preds, groundtruth)
@@ -473,8 +483,7 @@ def get_eval_score(cfg, preds):
         remove_directory(f'results/{cfg["exp_name"]}/csv')
         os.makedirs(f'results/{cfg["exp_name"]}/csv')
 
-        print('Length of preds:', len(preds))
-    
+        
         if 'mlp' in cfg['graph_name']:
            return get_eval_score_naive(path_annts, cfg, preds)
     
@@ -486,11 +495,15 @@ def get_eval_score(cfg, preds):
         for (video_id, pred) in preds:
           # Get a list of ground-truth action labels
           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+            print('Reading results: ', os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt'))
             label = [line.strip() for line in f]
 
+          # print('Length of pred:', len(pred))
+          # print('Length of true: ', len(label))
+
           if len(label) != len(pred):
-            # print(f'len(pred): {len(pred)} | len(label): {len(label)}')
-            # print(f'Length of pred and label do not match for {video_id}')
+            print(f'len(pred): {len(pred)} | len(label): {len(label)}')
+            print(f'Length of pred and label do not match for {video_id}')
             label = label[:len(pred)]
             
           # write results of each video to csv: pred vs true labels
@@ -519,6 +532,51 @@ def get_eval_score(cfg, preds):
               f1 = np.nan_to_num(2*pre*rec / (pre+rec))
             str_score += f', (F1@{th}) {f1*100:.2f}%'
 
+
+    elif eval_type == 'KR': # keystep recognition for egoexo benchmark task
+        y_true = []
+        y_preds = []    
+        total = 0
+        correct = 0
+        threshold = [0.1, 0.25, 0.5]
+        tp, fp, fn = [0]*len(threshold), [0]*len(threshold), [0]*len(threshold)
+
+        for (video_id, pred) in preds:
+          # Get a list of ground-truth action labels
+          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+            # print('Reading results: ', os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt'))
+            label = [line.strip() for line in f]
+            # print(label)
+
+          if len(label) != len(pred):
+            print(f'len(pred): {len(pred)} | len(label): {len(label)}')
+            print(f'Length of pred and label do not match for {video_id}')
+            label = label[:len(pred)]
+            
+          # write results of each video to csv: pred vs true labels
+          pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(f'results/{cfg["exp_name"]}/csv/results_{video_id}.csv', index=False)
+
+          # Append labels and predictions to lists
+          y_true.extend(label)
+          y_preds.extend(pred)
+
+          total += len(label)
+
+          for i, lb in enumerate(label):
+              if pred[i] == lb:
+                correct += 1
+
+
+        acc = correct/total
+        str_score = f'(Acc) {acc*100:.2f}%'
+
+        # print(y_true)
+        # print(y_preds)
+
+        f1 = f1_score(y_true, y_preds, average='micro')
+        str_score += f', (F1) {f1*100:.2f}%'
+        
+      
     return str_score
 
 

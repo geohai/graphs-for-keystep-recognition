@@ -23,6 +23,10 @@ File structure:
 *The lengths of the feature file and corresponding annotations file need to align. Can align with downsampling/etc in generate_temporal_graphs code.*
 
 
+## Segmentwise
+1. `python data/generate_temporal_graphs.py --features egoexo-omnivore-segmentwise  --tauf 10 --dataset egoexo-omnivore-segmentwise`
+2. `python tools/train_context_reasoning.py --cfg configs/action-segmentation/egoexo-omnivore/SPELL_default.yaml --split 2`
+3. ``
 
 ## Run GraVi-T (Only ready for omnivore)
 1. Generate the Pytorch-geometric graphs: 
@@ -41,6 +45,7 @@ For Omnivore Features, modify this config: configs/action-segmentation/egoexo-om
     - input_dim: 1536
     - dataset: egoexo-omnivore-aria
     - model_name: SimpleMLP
+
 For Bridge-Prompt Features, modify this config: configs/action-segmentation/egoexo/MLP_default.yaml
     - graph_name: mlp
     - input_dim: 756 # dimension of the Bridge Prompt features

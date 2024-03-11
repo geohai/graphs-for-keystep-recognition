@@ -9,8 +9,8 @@ w_ref: 5
 num_modality: 1
 # channel1: 1024
 # channel2: 512
-final_dim: 497
-input_dim: 756
+final_dim: 497 # number of classes total 
+input_dim: 756 # dimension of the input features
 # num_att_heads: 4
 dropout: 0.2
 lr: 0.0001

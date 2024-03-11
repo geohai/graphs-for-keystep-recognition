@@ -51,7 +51,6 @@ def evaluate(cfg):
     logger.info('Evaluation process started')
 
     preds_all = []
-    labels_all = []
     with torch.no_grad():
         print(f'Num batches: {len(val_loader)}')
         print(f'Batch size: {cfg["batch_size"]}')
@@ -69,21 +68,26 @@ def evaluate(cfg):
             logits = model(x, edge_index, edge_attr, c)
             
             # Change the format of the model output
-            if 'egoexo-omnivore' in cfg['dataset']:
+            if cfg['label_loading_strategy'] == 'omnivore-windowed':
                 preds = get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict)
                 # TODO: double check the lengths of preds and y
                 # preds are upsampled and y is downsampled right???
-                # if len(preds) != len(y):
-                #     print(len(preds[0][1]))
-                #     print(f'Preds and labels are not the same length: {len(preds)} vs {len(y)}')
-                #     if len(y) - len(preds) >= 32:
-                #         raise ValueError(f'Preds and labels are not within 1 window (32 frames) of the same length: {len(preds)} vs {len(y)}')
-                #     else:
-                #         # If difference in length is less than 32 then we just drop the last window from y (this is a alignment issue from upsampling the labels)
-                #         y = y[:len(preds)]
+                if len(preds) != len(y):
+                    print(len(preds[0]))
+                    print(len(preds[0][1]))
+                    print(f'Preds and labels are not the same length: {len(preds)} vs {len(y)}')
+                    if len(y) - len(preds) >= 32:
+                        raise ValueError(f'Preds and labels are not within 1 window (32 frames) of the same length: {len(preds)} vs {len(y)}')
+                    else:
+                        # If difference in length is less than 32 then we just drop the last window from y (this is a alignment issue from upsampling the labels)
+                        y = y[:len(preds)]
 
-            else:
+            elif cfg['label_loading_strategy'] == 'regular':
                 preds = get_formatted_preds(cfg, logits, g, data_dict)
+                if len(preds[0][1]) != len(y):
+                    print(len(preds[0]))
+                    print(len(preds[0][1]))
+                    print(f'Preds and labels are not the same length: {len(preds[0][1])} vs {len(y)}')
 
             # plot_predictions(cfg, preds)
             preds_all.extend(preds)
@@ -111,7 +115,8 @@ if __name__ == "__main__":
     parser.add_argument('--root_result',   type=str,   help='Root directory to output', default='./results')
     parser.add_argument('--dataset',       type=str,   help='Name of the dataset')
     parser.add_argument('--exp_name',      type=str,   help='Name of the experiment', required=True)
-    parser.add_argument('--eval_type',     type=str,   help='Type of the evaluation', required=True)
+    # parser.add_argument('--eval_type',     type=str,   help='Type of the evaluation', required=True)
+
 
     args = parser.parse_args()
 

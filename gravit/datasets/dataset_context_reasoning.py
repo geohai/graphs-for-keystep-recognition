@@ -11,6 +11,7 @@ class GraphDataset(Dataset):
     def __init__(self, path_graphs):
         super(GraphDataset, self).__init__()
         self.all_graphs = sorted(glob.glob(os.path.join(path_graphs, '*.pt')))
+        print('Length of dataset: ', len(self.all_graphs))
 
     def len(self):
         return len(self.all_graphs)

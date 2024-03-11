@@ -94,11 +94,11 @@ def load_and_fuse_modalities(data_file, combine_method, dataset='50salads', samp
     return feature
 
 
-def load_labels(actions, root_data, dataset, video_id, sample_rate=1, feature=None, load_raw=False):
-    if dataset == '50salads' or dataset == 'egoexo':
-        label = load_and_trim_labels(video_id, actions, root_data=root_data, dataset=dataset, sample_rate=sample_rate, feature=feature)
-    elif 'egoexo-omnivore' in dataset:
-        label = load_egoexo_omnivideo_integer_labels(video_id, actions, root_data=root_data, dataset=dataset, feature=feature, load_raw=load_raw)
+def load_labels(actions, root_data, annotation_dataset, video_id, sample_rate=1, feature=None, load_raw=False):
+    if annotation_dataset == '50salads' or annotation_dataset == 'egoexo':
+        label = load_and_trim_labels(video_id, actions, root_data=root_data, dataset=annotation_dataset, sample_rate=sample_rate, feature=feature)
+    elif 'egoexo-omnivore' in annotation_dataset:
+        label = load_egoexo_omnivideo_integer_labels(video_id, actions, root_data=root_data, dataset=annotation_dataset, feature=feature, load_raw=load_raw)
 
     return label
 
@@ -112,16 +112,12 @@ def load_egoexo_omnivideo_integer_labels(video_id, actions, root_data='../data',
     try:
         with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
             label = [actions[line.strip()] for line in f]
-            print(label)
-            print(len(label))
             
     except:
-        print(f'Labels not found. ')
-        return
-        # video_id = video_id.rsplit('_', 1)[0]
+        video_id = video_id.rsplit('_', 1)[0]
         # print(video_id)
-        # with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
-        #     label = [actions[line.strip()] for line in f]
+        with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
+            label = [actions[line.strip()] for line in f]
         # print('Success')
 
 
