@@ -1,7 +1,6 @@
+import os
 import sys
 sys.path.append('/home/blde8334/research/GraVi-T-custom')
-#print(sys.path)
-import os
 import yaml
 import torch
 import torch.optim as optim
@@ -9,7 +8,8 @@ from torch.utils.data import DataLoader
 from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
-from gravit.datasets import EgoExoOmnivoreDataset
+from gravit.datasets import EgoExoOmnivoreDataset, GraphDataset
+
 
 
 def train(cfg):
@@ -46,8 +46,12 @@ def train(cfg):
 
 
     ## Use the EgoExoOmnivore dataset
-    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], dataset = 'egoexo-aria-brp', validation=False, eval_mode=False), batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], dataset = 'egoexo-aria-brp', validation=True, eval_mode=False), batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
+    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=False, eval_mode=False, load_raw_labels=True),
+                               batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=True, eval_mode=False, load_raw_labels=True), 
+                            batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
+
+
 
     # Prepare the experiment
     loss_func = get_loss_func(cfg)

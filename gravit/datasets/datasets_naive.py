@@ -7,12 +7,12 @@ import numpy as np
 
 # Simple dataset for non-graph structured data
 class EgoExoOmnivoreDataset(Dataset):
-    def __init__(self, split, dataset, validation=False, eval_mode=False):
+    def __init__(self, split, features_dataset, annotations_dataset, load_raw_labels=False, validation=False, eval_mode=False):
         self.root_data = './data'
         self.is_multiview = None
         self.crop = False
-        self.dataset = dataset
-        print("dataset: ", self.dataset)
+        self.dataset = features_dataset
+        self.annotations = annotations_dataset
         self.tauf = 10
         self.skip_factor = 10
         self.data_files = []
@@ -21,11 +21,11 @@ class EgoExoOmnivoreDataset(Dataset):
         self.total_dimensions = 0
         self.validation = validation
         self.eval_mode = eval_mode
+        self.load_raw_labels = load_raw_labels
         
         # one hot encoding
         self.actions = self.__load_action_classes_mapping__()
         self.num_classes = len(self.actions)  # Assuming self.actions is a dictionary mapping class names to indices
-
 
         # list of all feature files
         if validation == True:
@@ -61,8 +61,8 @@ class EgoExoOmnivoreDataset(Dataset):
       
     def __len__(self):
         # return the total number of frames in the dataa -> each frame is a sample
-        return 500 # testing on subset 
         #return self.total_dimensions
+        return 500 # test with smaller dimension
 
     def __getitem__(self, idx):
         data_file, frame_num = self.val_to_file_frame[idx]
@@ -73,12 +73,8 @@ class EgoExoOmnivoreDataset(Dataset):
 
         # Load the features and labels
         feature = load_and_fuse_modalities(data_file, 'concat', dataset=self.dataset, sample_rate=self.sample_rate, is_multiview=self.is_multiview)
-        print("__getitem__")
-        print("feature :", feature)
-        print("raw video_id :", video_id)
-        video_id = video_id.rsplit('_', 1)[0] #Blake: Added this line
-        print("split video_id :", video_id)
-        label = load_labels(video_id=video_id, actions=self.actions, root_data=self.root_data, dataset=self.dataset, sample_rate=self.sample_rate, feature=feature)
+        label = load_labels(video_id=video_id, actions=self.actions, root_data=self.root_data, annotation_dataset=self.annotations, 
+                            sample_rate=self.sample_rate, feature=feature, load_raw=self.load_raw_labels)
    
         # now get the specific frame
         feature = feature[frame_num]

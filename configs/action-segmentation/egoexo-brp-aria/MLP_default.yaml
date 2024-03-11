@@ -1,8 +1,8 @@
 exp_name: MLP_AS_egoexo-brp-aria
 model_name: SimpleMLP
 graph_name: mlp
-feature_dataset: egoexo-brp-aria # name of the directory in features/ where the features are stored
-annotation_dataset: egoexo-brp-aria
+features_dataset: egoexo-brp-aria # name of the directory in features/ where the features are stored
+annotations_dataset: egoexo-brp-aria
 loss_name: ce #_ref
 use_spf: false
 use_ref: false
