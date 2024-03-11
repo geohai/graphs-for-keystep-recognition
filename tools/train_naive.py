@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/home/blde8334/research/GraVi-T-custom')
+#print(sys.path)
 import os
 import yaml
 import torch
@@ -35,16 +38,16 @@ def train(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    # ############### Load checkpoint weights ###############
-    checkpoint_path = 'results/MLP_AS_aria-lr_0.0005/ckpt_best.pt' 
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint)
-    ###############
+    # # ############### Load checkpoint weights ###############
+    # checkpoint_path = 'results/MLP_AS_aria-lr_0.0005/ckpt_best.pt' 
+    # checkpoint = torch.load(checkpoint_path)
+    # model.load_state_dict(checkpoint)
+    # ###############
 
 
     ## Use the EgoExoOmnivore dataset
-    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=False, eval_mode=False), batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, eval_mode=False), batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
+    train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], dataset = 'egoexo-aria-brp', validation=False, eval_mode=False), batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], dataset = 'egoexo-aria-brp', validation=True, eval_mode=False), batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
 
     # Prepare the experiment
     loss_func = get_loss_func(cfg)

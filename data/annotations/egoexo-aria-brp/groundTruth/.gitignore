@@ -1,0 +1,2 @@
+# Ignore ground truth labels
+*.txt

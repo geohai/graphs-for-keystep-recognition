@@ -7,11 +7,12 @@ import numpy as np
 
 # Simple dataset for non-graph structured data
 class EgoExoOmnivoreDataset(Dataset):
-    def __init__(self, split, validation=False, eval_mode=False):
+    def __init__(self, split, dataset, validation=False, eval_mode=False):
         self.root_data = './data'
         self.is_multiview = None
         self.crop = False
-        self.dataset = 'egoexo-omnivore-aria'
+        self.dataset = dataset
+        print("dataset: ", self.dataset)
         self.tauf = 10
         self.skip_factor = 10
         self.data_files = []
@@ -24,6 +25,7 @@ class EgoExoOmnivoreDataset(Dataset):
         # one hot encoding
         self.actions = self.__load_action_classes_mapping__()
         self.num_classes = len(self.actions)  # Assuming self.actions is a dictionary mapping class names to indices
+
 
         # list of all feature files
         if validation == True:
@@ -59,7 +61,8 @@ class EgoExoOmnivoreDataset(Dataset):
       
     def __len__(self):
         # return the total number of frames in the dataa -> each frame is a sample
-        return self.total_dimensions
+        return 500 # testing on subset 
+        #return self.total_dimensions
 
     def __getitem__(self, idx):
         data_file, frame_num = self.val_to_file_frame[idx]
@@ -70,6 +73,11 @@ class EgoExoOmnivoreDataset(Dataset):
 
         # Load the features and labels
         feature = load_and_fuse_modalities(data_file, 'concat', dataset=self.dataset, sample_rate=self.sample_rate, is_multiview=self.is_multiview)
+        print("__getitem__")
+        print("feature :", feature)
+        print("raw video_id :", video_id)
+        video_id = video_id.rsplit('_', 1)[0] #Blake: Added this line
+        print("split video_id :", video_id)
         label = load_labels(video_id=video_id, actions=self.actions, root_data=self.root_data, dataset=self.dataset, sample_rate=self.sample_rate, feature=feature)
    
         # now get the specific frame
