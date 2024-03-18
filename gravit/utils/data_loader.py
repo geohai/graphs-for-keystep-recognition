@@ -58,6 +58,8 @@ def load_and_fuse_modalities(data_file, combine_method, dataset='50salads', samp
             feature = np.load(data_file)
 
         # print(f'Loaded EgoExo-OmnivoreL. New shape: {feature.shape}')
+    elif 'egoexo' in dataset:
+        feature = np.load(data_file)
      
     ######## 50 Salads: Load and Concatenate Bridge-Prompt Features ###########
     # id = data_file.split('rgb-')[1].split('.npy')[0]
@@ -95,11 +97,15 @@ def load_and_fuse_modalities(data_file, combine_method, dataset='50salads', samp
 
 
 def load_labels(actions, root_data, annotation_dataset, video_id, sample_rate=1, feature=None, load_raw=False):
-    if annotation_dataset == '50salads' or annotation_dataset == 'egoexo':
-        label = load_and_trim_labels(video_id, actions, root_data=root_data, dataset=annotation_dataset, sample_rate=sample_rate, feature=feature)
-    elif 'egoexo-omnivore' in annotation_dataset:
+    print('-------------------------------')
+    print(annotation_dataset)
+    if 'egoexo-omnivore' in annotation_dataset:
+        print('Loading egoexo-omnivore labels...')
         label = load_egoexo_omnivideo_integer_labels(video_id, actions, root_data=root_data, dataset=annotation_dataset, feature=feature, load_raw=load_raw)
-
+    else:
+        print('Loading regular labels...')
+        label = load_and_trim_labels(video_id, actions, root_data=root_data, dataset=annotation_dataset, sample_rate=sample_rate, feature=feature)
+    
     return label
 
 
@@ -162,9 +168,17 @@ def load_and_trim_labels(video_id, actions, root_data='../data', dataset='50sala
 
     """
     # Get a list of ground-truth action labels
-    with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
-        label = [actions[line.strip()] for line in f]
-     
+    print(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt'))
+    # with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
+    #     label = [actions[line.strip()] for line in f]
+    try:
+        with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
+            label = [actions[line.strip()] for line in f]
+    except:
+        video_id = video_id.rsplit('_', 1)[0]
+        print(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt'))
+        with open(os.path.join(root_data, f'annotations/{dataset}/groundTruth/{video_id}.txt')) as f:
+            label = [actions[line.strip()] for line in f]
     # print(f'Original Length of labels: {len(label)}')
 
     ##### Shorten Labels to match #####
