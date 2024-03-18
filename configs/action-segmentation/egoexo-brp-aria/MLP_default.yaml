@@ -11,7 +11,7 @@ num_modality: 1
 # channel1: 1024
 # channel2: 512
 final_dim: 170 # Number of classes
-input_dim: 756
+input_dim: 768 # Input for egoexo-brp-aria
 # num_att_heads: 4
 dropout: 0.2
 lr: 0.0001
