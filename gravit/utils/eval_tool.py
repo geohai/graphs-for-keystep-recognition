@@ -14,7 +14,7 @@ import seaborn as sns
 from sklearn.metrics import f1_score
 from gravit.utils.data_loader import crop_to_start_and_end
 import shutil
-
+import torch
 from collections import defaultdict
 import csv
 import decimal
@@ -390,7 +390,7 @@ def compare_segmentation(pred, label, th):
     for i in range(len(pc)):
         inter = np.minimum(pe[i], le) - np.maximum(ps[i], ls)
         union = np.maximum(pe[i], le) - np.minimum(ps[i], ls)
-        print(union)
+        # print(union)
         IoU = (inter/union) * [pc[i] == lc[j] for j in range(len(lc))]
 
         best_idx = np.array(IoU).argmax()
@@ -468,7 +468,6 @@ def get_eval_score(cfg, preds):
     path_annts = os.path.join(cfg['root_data'], 'annotations')
 
     eval_type = cfg['eval_type']
-    print(eval_type)
     if eval_type == 'AVA_ASD':
         groundtruth = os.path.join(path_annts, 'ava_activespeaker_val_v1.0.csv')
         score = run_evaluation_asd(preds, groundtruth)
@@ -482,7 +481,6 @@ def get_eval_score(cfg, preds):
         # Create new csv results directory
         remove_directory(f'results/{cfg["exp_name"]}/csv')
         os.makedirs(f'results/{cfg["exp_name"]}/csv')
-
         
         if 'mlp' in cfg['graph_name']:
            return get_eval_score_naive(path_annts, cfg, preds)
@@ -495,11 +493,7 @@ def get_eval_score(cfg, preds):
         for (video_id, pred) in preds:
           # Get a list of ground-truth action labels
           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-            print('Reading results: ', os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt'))
             label = [line.strip() for line in f]
-
-          # print('Length of pred:', len(pred))
-          # print('Length of true: ', len(label))
 
           if len(label) != len(pred):
             print(f'len(pred): {len(pred)} | len(label): {len(label)}')
@@ -534,8 +528,13 @@ def get_eval_score(cfg, preds):
 
 
     elif eval_type == 'KR': # keystep recognition for egoexo benchmark task
-        y_true = []
-        y_preds = []    
+        # Create new csv results directory
+        remove_directory(f'results/{cfg["exp_name"]}/csv')
+        os.makedirs(f'results/{cfg["exp_name"]}/csv')
+
+        # if 'mlp' in cfg['graph_name']:
+        #    return get_eval_score_naive(path_annts, cfg, preds)
+    
         total = 0
         correct = 0
         threshold = [0.1, 0.25, 0.5]
@@ -543,39 +542,45 @@ def get_eval_score(cfg, preds):
 
         for (video_id, pred) in preds:
           # Get a list of ground-truth action labels
-          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-            # print('Reading results: ', os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt'))
-            label = [line.strip() for line in f]
-            # print(label)
-
+          if 'segmentwise' in cfg['dataset']:
+            with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+              label = [line.strip() for line in f]
+          else:
+            with open(os.path.join(path_annts, f'{cfg["dataset"]}/trainingLabels/{video_id}.txt')) as f:
+              label = [line.strip() for line in f]
+                  
           if len(label) != len(pred):
             print(f'len(pred): {len(pred)} | len(label): {len(label)}')
             print(f'Length of pred and label do not match for {video_id}')
+            # print(f'pred: {pred}')
+            # print(f'label: {label}')
             label = label[:len(pred)]
             
           # write results of each video to csv: pred vs true labels
           pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(f'results/{cfg["exp_name"]}/csv/results_{video_id}.csv', index=False)
-
-          # Append labels and predictions to lists
-          y_true.extend(label)
-          y_preds.extend(pred)
 
           total += len(label)
 
           for i, lb in enumerate(label):
               if pred[i] == lb:
                 correct += 1
-
-
+          
+          for i, th in enumerate(threshold):
+              tp_, fp_, fn_ = compare_segmentation(pred, label, th)
+              tp[i] += tp_
+              fp[i] += fp_
+              fn[i] += fn_
+        
         acc = correct/total
         str_score = f'(Acc) {acc*100:.2f}%'
-
-        # print(y_true)
-        # print(y_preds)
-
-        f1 = f1_score(y_true, y_preds, average='micro')
-        str_score += f', (F1) {f1*100:.2f}%'
-        
+        for i, th in enumerate(threshold):
+            pre = tp[i] / (tp[i]+fp[i])
+            rec = tp[i] / (tp[i]+fn[i])
+            if pre+rec == 0:
+              f1 = 0
+            else:
+              f1 = np.nan_to_num(2*pre*rec / (pre+rec))
+            str_score += f', (F1@{th}) {f1*100:.2f}%'
       
     return str_score
 

@@ -1,8 +1,8 @@
-exp_name: gravit-aria-segmentwise_t1_sf1000_innerprod # gravit-aria-base #MLP_AS_aria-lr_0.0005
+exp_name: gravit-aria-segmentwise #_t1_sf1000_innerprod # gravit-aria-base #MLP_AS_aria-lr_0.0005
 model_name: SPELL # SimpleMLP 
-graph_name: egoexo-omnivore-segmentwise_1_1000_innerprod # name of saved dir in data/graphs
-feature_dataset: egoexo-omnivore-segmentwise
-annotation_dataset: egoexo-omnivore-segmentwise
+graph_name: egoexo-omnivore-segmentwise #_1_1000_innerprod # name of saved dir in data/graphs
+features_dataset: egoexo-omnivore-segmentwise
+annotations_dataset: egoexo-omnivore-segmentwise
 loss_name: ce #_ref
 use_spf: False
 use_ref: false
@@ -21,9 +21,10 @@ sch_param: 5
 num_epoch: 45
 sample_rate: 1
 crop: False
-eval_type: AS
+eval_type: KR
 label_loading_strategy: regular
 
-similarity_metric: inner_product
-similarity_threshold: 80
+similarity_metric: None #cosine
+similarity_threshold: 0.97
 tauf: 1
+skip_factor: 1000

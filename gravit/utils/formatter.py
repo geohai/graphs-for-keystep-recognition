@@ -10,7 +10,9 @@ def get_formatting_data_dict(cfg):
     """
 
     root_data = cfg['root_data']
-    dataset = cfg['annotation_dataset']
+    if 'annotations_dataset' not in cfg:
+        cfg['annotations_dataset'] = cfg['dataset']
+    dataset = cfg['annotations_dataset']
     data_dict = {}
 
     if 'AVA' in cfg['eval_type']:
@@ -115,6 +117,7 @@ def get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict):
         tmp = logits[-1]
 
     tmp = torch.softmax(tmp.detach().cpu(), dim=1).max(dim=1)[1].tolist()
+    print(tmp)
 
     # Upsample the predictions to fairly compare with the ground-truth labels
     preds = []

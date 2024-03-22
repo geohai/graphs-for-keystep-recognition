@@ -3,7 +3,7 @@ import yaml
 import torch
 import torch.optim as optim
 from torch_geometric.loader import DataLoader
-
+from torch_geometric.nn import pool
 from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
@@ -36,7 +36,7 @@ def train(cfg):
 
     # Build a model and prepare the data loaders
     logger.info('Preparing a model and data loaders')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
 
@@ -68,26 +68,34 @@ def train(cfg):
         # Train for a single epoch
         loss_sum = 0.
         for data in train_loader:
-            # print('\n--')
+            # print('\n----------')
             optimizer.zero_grad()
 
             x, y = data.x.to(device), data.y.to(device)
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
+            
             c = None
+            if 'batch_idxs' in data.keys():
+                batch = data.batch_idxs
+            else:
+                batch = None
+
+            batch = batch.to(device)
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            # print(f'x: {x}')
-            logits = model(x, edge_index, edge_attr, c)
-
+            # print(f'x shape: {x.shape}')
+            logits = model(x, edge_index, edge_attr, c, batch=batch)
+            
             # print(y.shape)
             # print(logits.shape)
             # print(y)
             # print(logits)
             if y.shape[0] != logits.shape[0]:
                 print('Shapes do not match')
-                print(f'x shape is {x.shape}')
+                print(f'y shape is {y.shape}')
+                print(f'Logits shape is {logits.shape}')
             
             loss = loss_func(logits, y)
     
@@ -99,11 +107,9 @@ def train(cfg):
         scheduler.step()
 
         loss_train = loss_sum / len(train_loader)
-        print(loss_train)
 
         # Get the validation loss
         loss_val = val(val_loader, cfg['use_spf'], model, device, loss_func_val)
-        print(loss_val)
        
 
         # Save the best-performing checkpoint
@@ -134,10 +140,25 @@ def val(val_loader, use_spf, model, device, loss_func):
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
             c = None
+            if 'batch_idxs' in data.keys():
+                batch = data.batch_idxs 
+            else:
+                batch = None
+            batch = batch.to(device)
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            logits = model(x, edge_index, edge_attr, c)
+                
+            logits = model(x, edge_index, edge_attr, c, batch)
+
+            # print(y.shape)
+            # print(logits.shape)
+            # print(y)
+            # print(logits)
+            if y.shape[0] != logits.shape[0]:
+                print('Shapes do not match')
+                print(f'y shape is {y.shape}')
+                print(f'Logits shape is {logits.shape}')
 
             loss = loss_func(logits, y)
             loss_sum += loss.item()

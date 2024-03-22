@@ -9,6 +9,7 @@ from torch_geometric.data import Data
 from gravit.utils.data_loader import load_and_fuse_modalities, load_labels, crop_to_start_and_end
 from gravit.utils.parser import get_args, get_cfg
 
+
 def compute_similarity_metric(node_i, node_j, metric):
     if metric == 'cosine':
         return np.dot(node_i, node_j) / (np.linalg.norm(node_i) * np.linalg.norm(node_j))
@@ -18,6 +19,28 @@ def compute_similarity_metric(node_i, node_j, metric):
     elif metric == 'inner_product':
         return np.dot(node_i, node_j)
 
+def get_segments_and_batch_idxs(label):
+   
+    batch = 0
+    batch_idx_designation = []
+    segment_labels = []
+
+    # Find segment starts
+    segment_labels.append(label[0])
+    batch_idx_designation.append(batch)
+    for i in range(1, len(label)):
+        if label[i] != label[i-1]:
+            segment_labels.append(label[i])
+            batch += 1
+        batch_idx_designation.append(batch)
+
+    if batch+1 != len(segment_labels):
+        print(f'Number of segments: {batch+1} | Number of labels: {len(segment_labels)}')
+        print(segment_labels)
+        raise ValueError('Number of segments and labels do not match')
+    
+    return segment_labels, batch_idx_designation
+
 
 def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids):
     """
@@ -26,7 +49,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     
     combine_method = 'concat'
     skip = args.skip_factor
-
+    batch_idx_designation = 0
     video_id = os.path.splitext(os.path.basename(data_file))[0]
 
     # If using multiview features, remove the view number from the video_id
@@ -36,9 +59,35 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # Load the features and labels
     feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.features, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
     
-    video_id = video_id.rsplit('_', 1)[0] # Added this for segmentwise
-    label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                        sample_rate=args.sample_rate, feature=feature, load_raw=True) # load_raw=True for segmentwise, otherwise set to False to get the raw omnivore smapling strategy
+    # Try to load pre-averaged segmentwise features; if error then try to load unprocessed omnivore features
+    # TODO: add argument
+    try:
+        video_id = video_id.rsplit('_', 1)[0] 
+        label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
+                        sample_rate=args.sample_rate, feature=feature, load_raw=True) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
+       
+        # For segmentwise (keystep) evaluation use segmentwise annotations rather than action segmentation evaluation on omnivore sampling rate annotations
+        os.makedirs(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels'), exist_ok=True)
+        int_labels = np.array(label, dtype=np.int64)[::args.sample_rate]
+        reverse = {v: k for k, v in actions.items()}
+        string_labels = [reverse[i] for i in list(int_labels)]
+
+        with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'w') as f:
+            for item in string_labels:
+                f.write("%s\n" % item)
+
+    except:
+        # For loading  omnivore features
+        label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
+                        sample_rate=args.sample_rate, feature=feature, load_raw=False) 
+        # for pooling operation, the segmentwise annotations need to be saved instead of the framewise
+        # if args.segmentwise_annotations_dataset:
+        #     video_id_segmentwise = video_id.rsplit('_', 1)[0] # Added this for segmentwise
+        #     pooled_labels = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.segmentwise_annotations_dataset,
+        #                     sample_rate=args.sample_rate, feature=feature, load_raw=True)
+        label, batch_idx_designation = get_segments_and_batch_idxs(label)
+        
+
     num_frame = feature.shape[0]
 
     # Crop features and labels to remove action_start and action_end
@@ -46,7 +95,8 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         feature, label = crop_to_start_and_end(feature, label)
         num_frame = feature.shape[0]
 
-    # Get a list of the edge information: these are for edge_index and edge_attr
+
+    # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
     node_source = []
     node_target = []
@@ -72,9 +122,13 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                     edge_attr.append(np.sign(frame_diff))
 
             # Add similarity-based connections
+            # print(args.similarity_metric)
             if args.similarity_metric is not None and i != j:
                 similarity = compute_similarity_metric(feature[i], feature[j], metric=args.similarity_metric)
                 # print(f'similarity: {similarity}')
+                print(args.similarity_metric)
+                print(args.similarity_metric is not None)
+                print(args.similarity_metric is None)
                 if similarity > args.similarity_threshold:
                     # print(f'Adding similarity edge between {i} and {j} with similarity {similarity}')
                     node_source.append(i)
@@ -82,21 +136,22 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                     edge_attr.append(np.sign(frame_diff))  # try 0
                     counter_similarity_edges_added += 1
     
-    print(f'{counter_similarity_edges_added} similarity edges | {len(node_source) - counter_similarity_edges_added} | ' + "{:.1f}%".format(counter_similarity_edges_added / len(node_source) * 100) + " % of Total edges")
-
+    if args.similarity_metric is not None:
+        print(f'{counter_similarity_edges_added} similarity edges | {len(node_source) - counter_similarity_edges_added} | ' + "{:.1f}%".format(counter_similarity_edges_added / len(node_source) * 100) + " % of Total edges")
 
     # x: features
     # g: global_id
     # edge_index: information on how the graph nodes are connected
     # edge_attr: information about whether the edge is spatial (0) or temporal (positive: backward, negative: forward)
     # y: labels
-
     graphs = Data(x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32),
                   g = all_ids.index(video_id),
                   edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long),
                   edge_attr = torch.tensor(edge_attr, dtype=torch.float32),
-                  y = torch.tensor(np.array(label, dtype=np.int64)[::args.sample_rate], dtype=torch.long))
-
+                  y = torch.tensor(np.array(label, dtype=np.int64)[::args.sample_rate], dtype=torch.long),
+                  batch_idxs = torch.tensor(batch_idx_designation, dtype=torch.long)) # added segments for subgraph selection using node indices
+    
+    
     if video_id in train_ids:
         torch.save(graphs, os.path.join(path_graphs, 'train', f'{video_id}.pt'))
     else:
@@ -117,35 +172,34 @@ if __name__ == "__main__":
 
     # Hyperparameters for the graph generation
     parser.add_argument('--tauf',          type=int,   help='Maximum frame difference between neighboring nodes', required=False)
-    parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=10)
+    parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=1000)
     parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
     parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)
     
-
     args = parser.parse_args()
 
     # load config file
     if args.cfg is not None:
         cfg = get_cfg(args)
         print(cfg)
-        
 
     if args.features is None:
-        args.features = cfg['feature_dataset']
+        args.features = cfg['features_dataset']
     if args.dataset is None:
-        args.dataset = cfg['annotation_dataset']
-    # if args.tauf is None:
-    #     args.tauf = cfg['tauf']
-    # if args.skip_factor is None:
-    #     args.skip_factor = cfg['skip_factor']
+        args.dataset = cfg['annotations_dataset']
 
-    if cfg['tauf'] is not None:
-        args.tauf = cfg['tauf']
-    if cfg['similarity_metric'] is not None:
-        args.similarity_metric = cfg['similarity_metric']
+    if args.tauf is None:
+        args.tauf= cfg['tauf']
+    if args.skip_factor is None:
+        args.skip_factor = cfg['skip_factor']
+    args.similarity_metric = cfg['similarity_metric']
+    if args.similarity_metric == 'None':
+        args.similarity_metric = None
     if cfg['similarity_threshold'] is not None:
         args.similarity_threshold = cfg['similarity_threshold']
+
+    print(f'Tauf: {args.tauf} | Skip Factor: {args.skip_factor} | Similarity Metric: {args.similarity_metric} | Similarity Threshold: {args.similarity_threshold}')
 
     # Build a mapping from action classes to action ids
     actions = {}

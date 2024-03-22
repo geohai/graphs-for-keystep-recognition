@@ -29,7 +29,7 @@ def evaluate(cfg):
 
     # Build a model and prepare the data loaders
     logger.info('Preparing a model and data loaders')
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
 
@@ -62,11 +62,17 @@ def evaluate(cfg):
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
             c = None
+            if 'batch_idxs' in data.keys():
+                batch = data.batch_idxs
+                batch = batch.to(device)
+            else:
+                batch = None
+            
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            logits = model(x, edge_index, edge_attr, c)
-            
+            logits = model(x, edge_index, edge_attr, c, batch)
+
             # Change the format of the model output
             if cfg['label_loading_strategy'] == 'omnivore-windowed':
                 preds = get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict)
