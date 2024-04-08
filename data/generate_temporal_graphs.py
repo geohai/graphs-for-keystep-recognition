@@ -42,7 +42,7 @@ def get_segments_and_batch_idxs(label):
     return segment_labels, batch_idx_designation
 
 
-def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids):
+def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[]):
     """
     Generate temporal graphs of a single video
     """
@@ -58,6 +58,11 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
 
     # Load the features and labels
     feature = load_and_fuse_modalities(data_file, combine_method,  dataset=args.features, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
+    list_feature_multiview = []
+    for multiview_data_file in list_multiview_data_files:
+        feature_multiview = np.load(multiview_data_file)
+        assert feature.shape == feature_multiview.shape, f'feature.shape: {feature.shape}, feature_multiview.shape: {feature_multiview.shape}'
+        list_feature_multiview.append(feature_multiview)
     
     # Try to load pre-averaged segmentwise features; if error then try to load unprocessed omnivore features
     # TODO: add argument
@@ -97,6 +102,8 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     node_source = []
     node_target = []
     edge_attr = []
+
+    num_view = len(list_feature_multiview)+1
     for i in range(num_frame):
         for j in range(num_frame):
             # Frame difference between the i-th and j-th nodes
@@ -109,6 +116,18 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                 node_target.append(j)
                 edge_attr.append(np.sign(frame_diff))
 
+                for k in range(1, num_view):
+                    node_source.append(i+num_frame*k)
+                    node_target.append(j+num_frame*k)
+                    edge_attr.append(np.sign(frame_diff))
+
+                if frame_diff == 0:
+                    for k in range(1, num_view):
+                        node_source.append(i)
+                        node_target.append(j+num_frame*k)
+                        edge_attr.append(1)
+
+
             # Make additional connections between non-adjacent nodes
             # This can help reduce over-segmentation of predictions in some cases
             elif skip:
@@ -116,6 +135,11 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                     node_source.append(i)
                     node_target.append(j)
                     edge_attr.append(np.sign(frame_diff))
+
+                    for k in range(num_view):
+                        node_source.append(i+num_frame)
+                        node_target.append(j+num_frame)
+                        edge_attr.append(np.sign(frame_diff))
 
             # Add similarity-based connections
             # print(args.similarity_metric)
@@ -136,6 +160,11 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # edge_index: information on how the graph nodes are connected
     # edge_attr: information about whether the edge is spatial (0) or temporal (positive: backward, negative: forward)
     # y: labels
+    if num_view > 1:
+        feature_multiview = np.concatenate(list_feature_multiview)
+        feature = np.concatenate((np.array(feature, dtype=np.float32), feature_multiview))
+        label = label*num_view
+
     graphs = Data(x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32),
                   g = all_ids.index(video_id),
                   edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long),
@@ -167,6 +196,7 @@ if __name__ == "__main__":
     parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=1000)
     parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
     parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
+    parser.add_argument('--add_multiview',   help='Whether to add multiview features', action="store_true")
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)
     
     args = parser.parse_args()
@@ -219,12 +249,22 @@ if __name__ == "__main__":
         os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
 
         list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*.npy')))
+        multiview_data_files = {}
+        if args.add_multiview:
+            for multiview_data in sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}-exo/{split}/*/*.npy'))):
+                vid = '_'.join(os.path.basename(multiview_data).split('_')[:-1])
+                data_sp = 'train'
+                if vid not in train_ids:
+                    data_sp = 'val'
+                matching_data_file = os.path.join(args.root_data, f'features/{args.features}/{split}/{data_sp}/{vid}_0.npy')
+                assert matching_data_file in list_data_files, f'check {matching_data_file}'
+                if matching_data_file not in multiview_data_files:
+                    multiview_data_files[matching_data_file] = []
+                multiview_data_files[matching_data_file].append(multiview_data)
 
-        # If using multiview features, only get the features from the first view to feed into function. Later code will handle getting all view features and combining. 
-        if args.is_multiview:
-            list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*_0.npy')))
-
-        with Pool(processes=35) as pool:
-            pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
+        #with Pool(processes=35) as pool:
+        #    pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
+        for data_file in list_data_files:
+            generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
 
         print (f'Graph generation for {split} is finished')
