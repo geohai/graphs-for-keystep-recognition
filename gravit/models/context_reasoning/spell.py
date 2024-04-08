@@ -3,6 +3,7 @@ from torch.nn import Module, ModuleList, Conv1d, Sequential, ReLU, Dropout, func
 from torch_geometric.nn import Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm
 import torch_geometric
 import numpy as np
+from gravit.utils.batch_process import graph_to_nn_batch, nn_batch_to_graph
 
 class DilatedResidualLayer(Module):
     def __init__(self, dilation, in_channels, out_channels):
@@ -43,6 +44,7 @@ class SubgraphConv1D(Module):
         self.relu = ReLU()
         self.dropout = Dropout()
         self.max_seq_len = max_seq_len
+        self.output_dim = int((self.max_seq_len - kernel_size + 2*padding) / stride + 1)
 
     def forward(self, x, batch):
         x = graph_to_nn_batch(x, batch, max_seq_len=self.max_seq_len)
@@ -50,56 +52,17 @@ class SubgraphConv1D(Module):
         out = self.batch_norm(out)
         out = self.relu(out)
         out = self.dropout(out)
-        out,batch = nn_batch_to_graph(out, batch, self.max_seq_len)
+        out,batch = nn_batch_to_graph(out, batch, self.output_dim, self.max_seq_len)
         return out, batch
 
 
-def graph_to_nn_batch(x, batch, max_seq_len=60):
-    """
-    2D tensor x is converted to 3D tensor with batch dimension; also is padded to max_seq_len
-    """
-    # get unique batch numbers and sort them
-    batch_numbers = torch.unique(batch).sort()[0]
-    # Iterate over each batch, prepare tensor
-    for batch_num in batch_numbers:
-        # Get indices of samples belonging to the current batch
-        indices = torch.where(batch == batch_num)[0]
-
-        # # Batch norm and padding
-        batch_data = torch.index_select(x, 0, indices)
-        # if batch_data.shape[0] != 1:
-        #     batch_data = self.batch00(batch_data)
-        padded_data = F.pad(batch_data, (0,0,0,max_seq_len - batch_data.size(0)))
-
-        # check if batch data needs to be cropped
-        if padded_data.size(0) > max_seq_len:
-            padded_data = padded_data[:max_seq_len, :]
-        padded_data.unsqueeze_(0)
-        padded_data = padded_data.transpose(1,2)
-
-        if batch_num == 0:
-            batch_tensor = padded_data
-        else:
-            batch_tensor = torch.cat((batch_tensor, padded_data), dim=0)
-    return batch_tensor
-
-def nn_batch_to_graph(x, batch, max_seq_len=60):
-    # convert back to graph format
-    num_batches = torch.unique(batch).shape[0]
-    input_dim = x.shape[1]
-    x = x.permute(1, 0, 2)  # Swap the first and second dimensions
-    x = x.reshape(input_dim, -1).transpose(0,1)
-    batch = torch.arange(0, max_seq_len*num_batches, 1).to(x.device)
-    batch = torch.floor_divide(batch, max_seq_len)
-    return x, batch
-
-
 class SPELL(Module):
-    def __init__(self, cfg):
+    def __init__(self, cfg, save_feats=False):
         super(SPELL, self).__init__()
         self.use_spf = cfg['use_spf'] # whether to use the spatial features
         self.use_ref = cfg['use_ref']
         self.num_modality = cfg['num_modality']
+        self.save_feats = save_feats
 
         channels = [cfg['channel1'], cfg['channel2']]
         final_dim = cfg['final_dim']
@@ -108,10 +71,13 @@ class SPELL(Module):
         num_att_heads = cfg['num_att_heads']
         dropout = cfg['dropout']
 
-        # middle_dim = 1000
-        # self.subgraph_agg = SubgraphConv1D(in_channels=input_dim, out_channels=middle_dim, max_seq_len=80, kernel_size=3, stride=1, padding=1)
-        # self.pooling1 =  torch_geometric.nn.pool.global_mean_pool
-        # input_dim = middle_dim
+        middle_dim = input_dim
+        output_dim = input_dim
+        self.subgraph_agg1 = SubgraphConv1D(in_channels=input_dim, out_channels=middle_dim, max_seq_len=60, kernel_size=3, stride=1, padding=0)
+        # self.pooling1 = torch_geometric.nn.pool.avg_pool_neighbor_x
+        # self.subgraph_agg2 = SubgraphConv1D(in_channels=middle_dim, out_channels=output_dim, max_seq_len=60, kernel_size=3, stride=1, padding=0)
+        self.pooling1 =  torch_geometric.nn.pool.global_mean_pool
+        input_dim = output_dim
 
         if self.use_spf:
             self.layer_spf = Linear(-1, cfg['proj_dim']) # projection layer for spatial features
@@ -155,13 +121,25 @@ class SPELL(Module):
 
 
     def forward(self, x, edge_index, edge_attr, c=None, batch=None):
+        # print(f'Original Num batches: {batch.unique(sorted=True).shape[0]}')
         # Apply 1D convolutional layer
-        # x, batch = self.subgraph_agg(x, batch)
-        # # global pooling; modify edge matrix
-        # x = self.pooling1(x, batch)
-        # edge_index, edge_attr = self.rebuild_edge_matrix(x)
-        # ################################################################################
+        x, batch = self.subgraph_agg1(x, batch)
+        # x, batch = self.subgraph_agg2(x, batch)
+        # print(f'After subgraph aggregation - x: {x.shape} | batch: {batch.shape}')
+        # print(f'Num batches: {batch.unique(sorted=True).shape[0]}')
+        # global pooling; modify edge matrix
 
+        # Save for visualization
+        x = self.pooling1(x, batch)
+        if self.save_feats:
+            x_np = np.array(x.cpu().clone())
+            batch_np = np.array(batch.cpu().unsqueeze(1).clone())
+            return x_np, batch_np
+        
+
+        edge_index, edge_attr = self.rebuild_edge_matrix(x)
+        # ################################################################################
+       
         feature_dim = x.shape[1]
 
         if self.use_spf:

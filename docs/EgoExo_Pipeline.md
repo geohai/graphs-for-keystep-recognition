@@ -14,10 +14,10 @@ Short project description goes here.
 2. Run generate_symlinks.ipynb to set up symlinks in /home/juro4948/gravit/GraVi-T/data/features pointing to the npy features. All samples in the train/validation groups should be placed in the corresponding split folder. The bundle files will inform the program which samples are in train vs. validation.
 3. Check the config files to make sure the filepaths are to the correct data and annotations files.
 
-File structure:
-- Annotations need to be saved at data/annotations/<dataset_name>/groundTruth/<unique_name>.txt
+File structure: (These can all be manually copied from Bridge Prompt repo)
 - Splits need to be saved at data/annotations/<dataset_name>/splits/<test(train)>.split<n>.bundle
 - Class Int: String mapping needs to be saved at data/annotations/<dataset_name>/mapping.txt
+- Annotations need to be saved at data/annotations/<dataset_name>/groundTruth/<unique_name>.txt
 *Where <dataset_name> is specified in the correct config yaml file.*
 - Features need to be saved at data/features/<features_name>/split<n>/<train(val)>/<unique_name>.npy where features_name is specified by the flag input to generate_temporal_graphs script.
 *The lengths of the feature file and corresponding annotations file need to align. Can align with downsampling/etc in generate_temporal_graphs code.*

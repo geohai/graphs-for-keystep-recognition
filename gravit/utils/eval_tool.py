@@ -23,6 +23,7 @@ from .ava import object_detection_evaluation
 from .ava import standard_fields
 from mycolorpy import colorlist as mcp
 import os
+from sklearn.metrics import top_k_accuracy_score
 
 def remove_directory(directory):
   if os.path.exists(directory):
@@ -564,13 +565,14 @@ def get_eval_score(cfg, preds):
           for i, lb in enumerate(label):
               if pred[i] == lb:
                 correct += 1
-          
+
           for i, th in enumerate(threshold):
               tp_, fp_, fn_ = compare_segmentation(pred, label, th)
               tp[i] += tp_
               fp[i] += fp_
               fn[i] += fn_
-        
+
+
         acc = correct/total
         str_score = f'(Acc) {acc*100:.2f}%'
         for i, th in enumerate(threshold):
@@ -583,6 +585,13 @@ def get_eval_score(cfg, preds):
             str_score += f', (F1@{th}) {f1*100:.2f}%'
       
     return str_score
+
+
+def get_top1_accuracy(true, preds):
+    return top_k_accuracy_score(true, preds, k=1, normalize=False)
+
+
+
 
 
 def plot_ground_truth(cfg, video_id, actions, reverse):

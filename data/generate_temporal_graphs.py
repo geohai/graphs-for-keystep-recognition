@@ -62,32 +62,28 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # Try to load pre-averaged segmentwise features; if error then try to load unprocessed omnivore features
     # TODO: add argument
     try:
-        video_id = video_id.rsplit('_', 1)[0] 
-        label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
+        video_id_segmentwise = video_id.rsplit('_', 1)[0] 
+        label = load_labels(video_id=video_id_segmentwise, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
                         sample_rate=args.sample_rate, feature=feature, load_raw=True) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
        
-        # For segmentwise (keystep) evaluation use segmentwise annotations rather than action segmentation evaluation on omnivore sampling rate annotations
-        os.makedirs(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels'), exist_ok=True)
-        int_labels = np.array(label, dtype=np.int64)[::args.sample_rate]
-        reverse = {v: k for k, v in actions.items()}
-        string_labels = [reverse[i] for i in list(int_labels)]
-
-        with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'w') as f:
-            for item in string_labels:
-                f.write("%s\n" % item)
-
+        video_id = video_id_segmentwise
+        
     except:
         # For loading  omnivore features
         label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
                         sample_rate=args.sample_rate, feature=feature, load_raw=False) 
-        # for pooling operation, the segmentwise annotations need to be saved instead of the framewise
-        # if args.segmentwise_annotations_dataset:
-        #     video_id_segmentwise = video_id.rsplit('_', 1)[0] # Added this for segmentwise
-        #     pooled_labels = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.segmentwise_annotations_dataset,
-        #                     sample_rate=args.sample_rate, feature=feature, load_raw=True)
         label, batch_idx_designation = get_segments_and_batch_idxs(label)
-        
 
+    # For segmentwise (keystep) evaluation use segmentwise annotations rather than action segmentation evaluation on omnivore sampling rate annotations
+    os.makedirs(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels'), exist_ok=True)
+    int_labels = np.array(label, dtype=np.int64)[::args.sample_rate]
+    reverse = {v: k for k, v in actions.items()}
+    string_labels = [reverse[i] for i in list(int_labels)]
+
+    with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'w') as f:
+        for item in string_labels:
+            f.write("%s\n" % item)
+    
     num_frame = feature.shape[0]
 
     # Crop features and labels to remove action_start and action_end
@@ -125,10 +121,6 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
             # print(args.similarity_metric)
             if args.similarity_metric is not None and i != j:
                 similarity = compute_similarity_metric(feature[i], feature[j], metric=args.similarity_metric)
-                # print(f'similarity: {similarity}')
-                print(args.similarity_metric)
-                print(args.similarity_metric is not None)
-                print(args.similarity_metric is None)
                 if similarity > args.similarity_threshold:
                     # print(f'Adding similarity edge between {i} and {j} with similarity {similarity}')
                     node_source.append(i)

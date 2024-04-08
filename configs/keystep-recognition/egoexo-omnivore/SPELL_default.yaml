@@ -24,7 +24,7 @@ crop: False
 eval_type: KR
 label_loading_strategy: regular
 
-similarity_metric: None #cosine
+similarity_metric: cosine
 similarity_threshold: 0.97
 tauf: 1
 skip_factor: 1000
