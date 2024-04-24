@@ -3,6 +3,7 @@ model_name: SPELL # SimpleMLP
 graph_name: egoexo-omnivore-segmentwise #_1_1000_innerprod # name of saved dir in data/graphs
 features_dataset: egoexo-omnivore-segmentwise
 annotations_dataset: egoexo-omnivore-segmentwise
+load_segmentwise: True
 loss_name: ce #_ref
 use_spf: False
 use_ref: false
@@ -24,7 +25,7 @@ crop: False
 eval_type: KR
 label_loading_strategy: regular
 
-similarity_metric: cosine
+similarity_metric: None # cosine
 similarity_threshold: 0.97
 tauf: 1
 skip_factor: 1000

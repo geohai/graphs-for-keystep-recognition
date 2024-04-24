@@ -28,7 +28,8 @@ from sklearn.metrics import top_k_accuracy_score
 def remove_directory(directory):
   if os.path.exists(directory):
     try:
-      shutil.rmtree(directory)
+      # forcefully remove directory
+      shutil.rmtree(directory, ignore_errors=True)
       print(f"Directory '{directory}' removed successfully.")
     except OSError as e:
       print(f"Error: {directory} : {e.strerror}")
@@ -544,11 +545,14 @@ def get_eval_score(cfg, preds):
         for (video_id, pred) in preds:
           # Get a list of ground-truth action labels
           if 'segmentwise' in cfg['dataset']:
-            with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+            path = os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')
+            with open(path) as f:
               label = [line.strip() for line in f]
           else:
-            with open(os.path.join(path_annts, f'{cfg["dataset"]}/trainingLabels/{video_id}.txt')) as f:
+            path = os.path.join(path_annts, f'{cfg["dataset"]}/trainingLabels/{video_id}.txt')
+            with open(path) as f:
               label = [line.strip() for line in f]
+          # print(f'Loaded path: {path}')
                   
           if len(label) != len(pred):
             print(f'len(pred): {len(pred)} | len(label): {len(label)}')
@@ -558,8 +562,9 @@ def get_eval_score(cfg, preds):
             label = label[:len(pred)]
             
           # write results of each video to csv: pred vs true labels
-          pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(f'results/{cfg["exp_name"]}/csv/results_{video_id}.csv', index=False)
-
+          path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"
+          pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(path, index=False)
+          # print(f'Predictions saved to {path}')
           total += len(label)
 
           for i, lb in enumerate(label):
@@ -589,9 +594,6 @@ def get_eval_score(cfg, preds):
 
 def get_top1_accuracy(true, preds):
     return top_k_accuracy_score(true, preds, k=1, normalize=False)
-
-
-
 
 
 def plot_ground_truth(cfg, video_id, actions, reverse):
@@ -665,7 +667,7 @@ def plot_predictions(cfg, preds):
         print('incomplete function')
     elif eval_type == 'AVA_AL':
         print('incomplete function')
-    elif eval_type == 'AS':
+    elif eval_type == 'AS' or eval_type == 'KR':
        for video_id, pred in preds:
             # Get a list of ground-truth action labels
             with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
@@ -739,7 +741,7 @@ def error_analysis(cfg, preds):
         print('incomplete function')
     elif eval_type == 'AVA_AL':
         print('incomplete function')
-    elif eval_type == 'AS':
+    elif eval_type == 'AS' or eval_type == 'KR':
      
       total = None
       for i, (video_id, pred) in enumerate(preds):

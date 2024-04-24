@@ -13,6 +13,11 @@ from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds
 from gravit.utils.eval_tool import get_eval_score
 
 import numpy as np
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+# Initialize distributed training
+# dist.init_process_group("gloo")
 
 def train(cfg):
     """
@@ -36,10 +41,16 @@ def train(cfg):
 
     # Build a model and prepare the data loaders
     logger.info('Preparing a model and data loaders')
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
+    model.to(device)
+    # model = torch.nn.DataParallel(model, device_ids=[0, 1])
+    
 
+    # model = DDP(model)
+
+   
     # # Load checkpoint weights
     # checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt'
     # checkpoint = torch.load(checkpoint_path)
@@ -60,48 +71,60 @@ def train(cfg):
     print(f'Length of train_loader:', len(train_loader))
     print(f'Batch size:', cfg['batch_size'])
 
+
+    # Number of accumulation steps
+    
+    accumulation_steps = 1
+
+
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
         print(f'------- Epoch: {epoch} --------')
         model.train()
 
         # Train for a single epoch
-        loss_sum = 0.
+        loss_sum = 0
+        accumulated_gradients = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
         for data in train_loader:
-            # print('\n----------')
             optimizer.zero_grad()
-
-            x, y = data.x.to(device), data.y.to(device)
+            x = data.x.to(device)
+            if x.shape[0] > 900: #800 works
+                continue
+                # clear cache
+                # torch.cuda.empty_cache()
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
-            
-            c = None
             if 'batch_idxs' in data.keys():
-                batch = data.batch_idxs
+                batch = data.batch_idxs.to(device)
             else:
                 batch = None
-
-            batch = batch.to(device)
+            if 'view_idxs' in data.keys():
+                view_idx = data.view_idxs.to(device)
+            else:
+                view_idx = None
             if cfg['use_spf']:
                 c = data.c.to(device)
+            else:
+                c = None
+                
 
-            # print(f'x shape: {x.shape}')
-            logits = model(x, edge_index, edge_attr, c, batch=batch)
-            
-            # print(y.shape)
-            # print(logits.shape)
-            # print(y)
-            # print(logits)
-            if y.shape[0] != logits.shape[0]:
-                print('Shapes do not match')
-                print(f'y shape is {y.shape}')
-                print(f'Logits shape is {logits.shape}')
-            
+            logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
+            y = data.y.to(device)
             loss = loss_func(logits, y)
-    
             loss.backward()
             loss_sum += loss.item()
-            optimizer.step()
+
+            # Accumulate gradients
+            for name, param in model.named_parameters():
+                if param.grad is not None:
+                    accumulated_gradients[name] += param.grad
+              
+            # Perform optimization step every accumulation_steps
+            if (epoch + 1) % accumulation_steps == 0:
+                for name, param in model.named_parameters():
+                    param.grad = accumulated_gradients[name] / accumulation_steps
+                optimizer.step()
+                accumulated_gradients = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
 
         # Adjust the learning rate
         scheduler.step()
@@ -110,7 +133,7 @@ def train(cfg):
 
         # Get the validation loss
         loss_val = val(val_loader, cfg['use_spf'], model, device, loss_func_val)
-       
+        
 
         # Save the best-performing checkpoint
         if loss_val < min_loss_val:

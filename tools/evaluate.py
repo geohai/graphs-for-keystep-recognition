@@ -18,7 +18,10 @@ def evaluate(cfg):
     print(cfg)
 
     # Input and output paths
-    path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
+    if 'graph_name_eval' in cfg:
+        path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name_eval"]}')
+    else:
+        path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
     if 'split' in cfg:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
@@ -29,10 +32,11 @@ def evaluate(cfg):
 
     # Build a model and prepare the data loaders
     logger.info('Preparing a model and data loaders')
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
 
+    print(f'Loading the data from {path_graphs}')
     val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
     num_val_graphs = len(val_loader)
@@ -58,7 +62,7 @@ def evaluate(cfg):
         for i, data in enumerate(val_loader, 1):
             g = data.g.tolist()
             x = data.x.to(device)
-            y = data.y.to(device) # julia added this
+            y = data.y.to(device) 
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
             c = None

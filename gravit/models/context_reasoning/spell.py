@@ -3,7 +3,10 @@ from torch.nn import Module, ModuleList, Conv1d, Sequential, ReLU, Dropout, func
 from torch_geometric.nn import Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm
 import torch_geometric
 import numpy as np
-from gravit.utils.batch_process import graph_to_nn_batch, nn_batch_to_graph
+# from gravit.utils.batch_process import graph_to_nn_batch, nn_batch_to_graph, multiview_graph_to_nn_batch
+
+from transformers import MambaConfig, MambaModel
+from mamba.models import MambaSeqEmbedding
 
 class DilatedResidualLayer(Module):
     def __init__(self, dilation, in_channels, out_channels):
@@ -71,17 +74,28 @@ class SPELL(Module):
         num_att_heads = cfg['num_att_heads']
         dropout = cfg['dropout']
 
-        middle_dim = input_dim
-        output_dim = input_dim
-        self.subgraph_agg1 = SubgraphConv1D(in_channels=input_dim, out_channels=middle_dim, max_seq_len=60, kernel_size=3, stride=1, padding=0)
+        # middle_dim = input_dim
+        # output_dim = input_dim
+        # self.subgraph_agg1 = SubgraphConv1D(in_channels=input_dim, out_channels=middle_dim, max_seq_len=60, kernel_size=3, stride=1, padding=0)
         # self.pooling1 = torch_geometric.nn.pool.avg_pool_neighbor_x
         # self.subgraph_agg2 = SubgraphConv1D(in_channels=middle_dim, out_channels=output_dim, max_seq_len=60, kernel_size=3, stride=1, padding=0)
-        self.pooling1 =  torch_geometric.nn.pool.global_mean_pool
-        input_dim = output_dim
+        # self.pooling1 =  torch_geometric.nn.pool.global_mean_pool
+        
+        # input_dim = output_dim
+
+        self.max_seq_len = 25
+        mamba_config= MambaConfig(vocab_size=497, hidden_size=1536, num_hidden_layers=4)
+        model = MambaModel(mamba_config)
+        model = MambaSeqEmbedding(model, 1536, 1200)
+
+        # self.subgraph_agg = model
+        self.subgraph_agg = torch.nn.DataParallel(model)
+        self.average_subgraph = torch_geometric.nn.pool.global_mean_pool
 
         if self.use_spf:
             self.layer_spf = Linear(-1, cfg['proj_dim']) # projection layer for spatial features
 
+        print(f'Input dim: {input_dim}  Final dim: {final_dim}')
         self.layer011 = Linear(input_dim, channels[0]) 
         if self.num_modality == 2:
             self.layer012 = Linear(-1, channels[0])
@@ -120,25 +134,71 @@ class SPELL(Module):
             self.layer_ref3 = Refinement(final_dim)
 
 
-    def forward(self, x, edge_index, edge_attr, c=None, batch=None):
+    def forward(self, x, edge_index, edge_attr, c=None, batch=None, view_idx=None):
+        # print('-------')
         # print(f'Original Num batches: {batch.unique(sorted=True).shape[0]}')
         # Apply 1D convolutional layer
-        x, batch = self.subgraph_agg1(x, batch)
+        # x, batch = self.subgraph_agg1(x, batch)
         # x, batch = self.subgraph_agg2(x, batch)
         # print(f'After subgraph aggregation - x: {x.shape} | batch: {batch.shape}')
         # print(f'Num batches: {batch.unique(sorted=True).shape[0]}')
         # global pooling; modify edge matrix
 
         # Save for visualization
-        x = self.pooling1(x, batch)
-        if self.save_feats:
-            x_np = np.array(x.cpu().clone())
-            batch_np = np.array(batch.cpu().unsqueeze(1).clone())
-            return x_np, batch_np
+        # x = self.pooling1(x, batch)
+        # if self.save_feats:
+        #     x_np = np.array(x.cpu().clone())
+        #     batch_np = np.array(batch.cpu().unsqueeze(1).clone())
+        #     return x_np, batch_np
+
+        # poool
+        
         
 
-        edge_index, edge_attr = self.rebuild_edge_matrix(x)
+        # edge_index, edge_attr = self.rebuild_edge_matrix(x)
         # ################################################################################
+        ## Mamba
+        # print(f'x: {x.shape} | batch: {torch.unique(batch).shape} | view_idx: {torch.unique(view_idx).shape}')
+        # when there are multiple views in the graph
+        if view_idx is not None and torch.unique(view_idx).shape[0] > 1:
+            # print(f'x: {x.shape} | batch: {torch.unique(batch).shape}, {batch.shape} | view_idx: {torch.unique(view_idx).shape}')
+            
+            # create new batch index for multiview using batch and view_idx
+            batch_view = batch * torch.unique(view_idx).shape[0] + view_idx
+            # print(f'x: {x.shape} | batch: {torch.unique(batch).shape} | view_idx: {torch.unique(view_idx).shape}')
+            # print(f'Batch view: ', batch_view.shape)
+            # print(f'batch view:', batch_view)
+
+            avg = self.average_subgraph(x, batch=batch_view.to(x.device))
+            # print(f'x: {x.shape} | batch: {torch.unique(batch).shape} | view_idx: {torch.unique(view_idx).shape}')
+            # sort avg by the batch_view indices
+            avg = avg[torch.unique(batch_view).argsort()]
+            # avg is in order of b0v0, b0v1, b0v2,
+
+            # print(f'x: {x.shape} | batch: {torch.unique(batch).shape} | view_idx: {torch.unique(view_idx).shape}')
+            x = multiview_graph_to_nn_batch(x, batch, view_idx, max_seq_len=self.max_seq_len)
+            x = x.reshape(x.shape[0], x.shape[2], x.shape[1])
+            x = self.subgraph_agg(x)
+            edge_index, edge_attr = self.rebuild_edge_matrix(x, view_idx)  # view_idx needed to determine num_views
+        else:
+            # when there is a single view in the graph
+            avg = self.average_subgraph(x, batch=batch)
+
+            x = graph_to_nn_batch(x, batch, max_seq_len=self.max_seq_len) # output: first dimension is batch size [batch_size, feature_dim, max_seq_len)]
+            x = x.reshape(x.shape[0], x.shape[2], x.shape[1])   # rearrange the dimensions to [batch_size, max_seq_len, feature_dim]
+            x = self.subgraph_agg(x)
+            # print(f'After subgraph aggregation: x: {x.shape} ')
+            edge_index, edge_attr = self.rebuild_edge_matrix(x, view_idx)
+
+        # append the average subgraph to the feature vector
+        print(f'x: {x.shape} | avg: {avg.shape}')
+
+        # print(f'x: {x.shape} ')
+        x = torch.cat((x, avg), dim=1)
+            
+        del view_idx
+        del batch
+        #################
        
         feature_dim = x.shape[1]
 
@@ -159,6 +219,7 @@ class SPELL(Module):
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]
 
+  
         # print(f'x: {x.shape} ')
         # print('edge_index_f: ', edge_index_f.shape)
 
@@ -171,6 +232,8 @@ class SPELL(Module):
         x1 = self.batch21(x1)
         x1 = self.relu(x1)
         x1 = self.dropout(x1)
+
+
 
         ######## Backward-graph stream
         x2 = self.layer12(x, edge_index_b)
@@ -285,10 +348,14 @@ class SPELL(Module):
             # print(f'Pooling operation Final: x: {x.shape} | edge_index: {edge_index.shape} | edge_attr: {edge_attr.shape} | batch: {batch.shape}') # | perm: {perm.shape} | score: {score}
             return x, edge_index, edge_attr, batch
     
-    def rebuild_edge_matrix(self, x):
+    def rebuild_edge_matrix(self, x, view_idx=None):
+        if view_idx is not None and torch.unique(view_idx).shape[0] > 1:
+            return self.rebuild_edge_matrix_multiview(x, view_idx)
         node_source = []
         node_target = []
         edge_attr = []
+        # print(f'x: {x.shape}')
+        # print(f'view_idx: {view_idx.shape}')
         for i in range(x.shape[0]):
             for j in range(x.shape[0]):
                 # Frame difference between the i-th and j-th nodes
@@ -300,6 +367,43 @@ class SPELL(Module):
                     node_source.append(i)
                     node_target.append(j)
                     edge_attr.append(np.sign(frame_diff))
+
+        edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long).to(x.device)
+        edge_attr = torch.tensor(edge_attr, dtype=torch.float32).to(x.device)
+
+        return edge_index, edge_attr
+    
+    def rebuild_edge_matrix_multiview(self, x, view_idx):              
+        num_view = torch.unique(view_idx).shape[0]
+        # print(f'Num views: {num_view}')
+        num_frame = x.shape[0] // num_view  # num frames is the number of batches
+        # print(f'Num frames: {num_frame}')
+        node_source = []
+        node_target = []
+        edge_attr = []
+
+        for i in range(num_frame):
+            for j in range(num_frame):
+                # Frame difference between the i-th and j-th nodes
+                frame_diff = i - j
+
+                # The edge ij connects the i-th node and j-th node
+                # Positive edge_attr indicates that the edge ij is backward (negative: forward)
+                if abs(frame_diff) <= 1:
+                    node_source.append(i)
+                    node_target.append(j)
+                    edge_attr.append(np.sign(frame_diff))
+
+                    for k in range(1, num_view):
+                        node_source.append(i+num_frame*k)
+                        node_target.append(j+num_frame*k)
+                        edge_attr.append(np.sign(frame_diff))
+
+                    if frame_diff == 0:
+                        for k in range(1, num_view):
+                            node_source.append(i)
+                            node_target.append(j+num_frame*k)
+                            edge_attr.append(1)
 
         edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long).to(x.device)
         edge_attr = torch.tensor(edge_attr, dtype=torch.float32).to(x.device)
@@ -336,4 +440,150 @@ class SPELL(Module):
             new_batch = torch.arange(0, 10, 1).to(x.device)
         return new_out
     
+
+
+
+
+# def graph_to_nn_batch(x, batch, max_seq_len=25):
+#     """
+#     2D tensor x is converted to 3D tensor with batch dimension; also is padded to max_seq_len
+#     """
+#     # get unique batch numbers and sort them
+#     batch_numbers = torch.unique(batch).sort()[0]
+
+#     batch_tensor = torch.zeros([1, x.shape[1], max_seq_len]).to(x.device)
+
+#     # Iterate over each batch, prepare tensor
+#     for batch_num in batch_numbers:
+#         # Get indices of samples belonging to the current batch
+#         indices = torch.where(batch == batch_num)[0]
+
+#         # # Batch norm and padding
+#         batch_data = torch.index_select(x, 0, indices)
+#         # if batch_data.shape[0] != 1:
+#         #     batch_data = self.batch00(batch_data)
+#         padded_data = F.pad(batch_data, (0,0,0,max_seq_len - batch_data.size(0)))
+
+#         # check if batch data needs to be cropped
+#         if padded_data.size(0) > max_seq_len:
+#             padded_data = padded_data[:max_seq_len, :]
+#         padded_data.unsqueeze_(0)
+#         padded_data = padded_data.transpose(1,2)
+
+#         batch_tensor = torch.cat((batch_tensor, padded_data), dim=0)
+        
+#     return batch_tensor[1:]
+
+
+# def nn_batch_to_graph(x, batch, output_dim, max_seq_len=60):
+#     # convert back to graph format
+#     # print(f'Before reshaping - x: {x.shape} | batch: {batch.shape}')
+#     num_batches = torch.unique(batch).shape[0]
+#     input_dim = x.shape[1]
+#     x = x.permute(1, 0, 2)  # Swap the first and second dimensions
+#     x = x.reshape(input_dim, -1).transpose(0,1)
+#     # print(f'Calc output_dim: {output_dim} | Num batches: {num_batches} | x: {x.shape}')
+#     # Prepare new batch idx array
+#     batch = torch.arange(0, output_dim*num_batches, 1).to(x.device)
+#     batch = torch.floor_divide(batch, output_dim)
+#     return x, batch
+
+
+# def multiview_graph_to_nn_batch(x, batch_idxs, view_idxs, max_seq_len=25):
+#     """Takes multiview feature vector size [num_segments * num_views,feature_dim] and separates via batch and view_idx to 
+#     [n_actions * n_views, 25, feature_dim]. """
+#     # get unique batch numbers and sort them
+#     batch_numbers = torch.unique(batch_idxs).sort()[0]
+#     view_numbers = torch.unique(view_idxs).sort()[0]
+#     # print(f'x; {x.shape}')
+#     # print(f'batch nums: {batch_numbers.shape}')
+#     # print(f'view_idxs: {view_idxs.shape}')
+#     # Iterate over each batch, prepare tensor
+#     batch_tensor = torch.zeros([1, x.shape[1], max_seq_len]).to(x.device) 
+#     for batch_num in batch_numbers:
+#         for view_num in view_numbers:
+#             # Get indices of samples belonging to the current batch
+#             indices = torch.where((batch_idxs == batch_num) & (view_idxs == view_num))[0]
+#             # # Batch norm and padding
+#             batch_data = torch.index_select(x, 0, indices)
+#             # if batch_data.shape[0] != 1:
+#             #     batch_data = self.batch00(batch_data)
+#             padded_data = F.pad(batch_data, (0,0,0,max_seq_len - batch_data.size(0)))
+
+#             # check if batch data needs to be cropped
+#             if padded_data.size(0) > max_seq_len:
+#                 padded_data = padded_data[:max_seq_len, :]
+#             padded_data.unsqueeze_(0)
+#             padded_data = padded_data.transpose(1,2)
+
+
+#             batch_tensor = torch.cat((batch_tensor, padded_data), dim=0)
+#     return batch_tensor[1:]
+
+
+# def multiview_graph_to_nn_multiview_batch(x, batch_idxs, view_idxs, max_seq_len=25):
+#     """Takes multiview feature vector size [num_segments * num_views,feature_dim] and separates via batch and view_idx to 
+#     [n_actions, 25 * num_views, feature_dim]. """
+#     # get unique batch numbers and sort them
+#     batch_numbers = torch.unique(batch_idxs).sort()[0]
+#     view_numbers = torch.unique(view_idxs).sort()[0]
+#     batch_tensor = torch.zeros([1, x.shape[1], max_seq_len]).to(x.device)    
+#     # Iterate over each batch, prepare tensor
+#     for batch_num in batch_numbers:
+
+#         for view_num in view_numbers:
+#             # Get indices of samples belonging to the current batch
+#             indices = torch.where((batch_idxs == batch_num) & (view_idxs == view_num))[0]
+#             # # Batch norm and padding
+#             batch_data = torch.index_select(x, 0, indices)
+#             # if batch_data.shape[0] != 1:
+#             #     batch_data = self.batch00(batch_data)
+#             padded_data = F.pad(batch_data, (0,0,0,max_seq_len - batch_data.size(0)))
+
+#             # check if batch data needs to be cropped
+#             if padded_data.size(0) > max_seq_len:
+#                 padded_data = padded_data[:max_seq_len, :]
+#             padded_data.unsqueeze_(0)
+#             padded_data = padded_data.transpose(1,2)
+
+#             if view_num == 0:
+#                 view_tensor = padded_data
+
+#             batch_tensor = torch.cat((batch_tensor, padded_data), dim=0)
+
+#     return batch_tensor[1:]
+
+
+
+def graph_to_nn_batch(x, batch, max_seq_len=25):
+    batch_numbers = torch.unique(batch).sort()[0]
+
+    batch_tensors = []
+    for batch_num in batch_numbers:
+        indices = torch.where(batch == batch_num)[0]
+        batch_data = torch.index_select(x, 0, indices)
+        padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
+        padded_data = padded_data[:max_seq_len, :]
+        padded_data = padded_data.unsqueeze(0).transpose(1, 2)
+        batch_tensors.append(padded_data)
+
+    return torch.cat(batch_tensors, dim=0)
+
+
+def multiview_graph_to_nn_batch(x, batch_idxs, view_idxs, max_seq_len=25): 
+    batch_numbers = torch.unique(batch_idxs).sort()[0]
+    view_numbers = torch.unique(view_idxs).sort()[0]
+
+    batch_tensors = []
+    for batch_num in batch_numbers:
+        for view_num in view_numbers:
+            indices = torch.where((batch_idxs == batch_num) & (view_idxs == view_num))[0]
+            batch_data = torch.index_select(x, 0, indices)
+            padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
+            padded_data = padded_data[:max_seq_len, :]
+            padded_data = padded_data.unsqueeze(0).transpose(1, 2)
+            batch_tensors.append(padded_data)
+
+    return torch.cat(batch_tensors, dim=0)
+
 
