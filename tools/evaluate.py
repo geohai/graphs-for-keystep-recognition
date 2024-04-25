@@ -18,6 +18,7 @@ def evaluate(cfg):
     print(cfg)
 
     # Input and output paths
+    # name of saved graphs with just ego view (not exo)
     if 'graph_name_eval' in cfg:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name_eval"]}')
     else:
@@ -78,26 +79,11 @@ def evaluate(cfg):
             logits = model(x, edge_index, edge_attr, c, batch)
 
             # Change the format of the model output
-            if cfg['label_loading_strategy'] == 'omnivore-windowed':
-                preds = get_formatted_preds_egoexo_omnivore(cfg, logits, g, data_dict)
-                # TODO: double check the lengths of preds and y
-                # preds are upsampled and y is downsampled right???
-                if len(preds) != len(y):
-                    print(len(preds[0]))
-                    print(len(preds[0][1]))
-                    print(f'Preds and labels are not the same length: {len(preds)} vs {len(y)}')
-                    if len(y) - len(preds) >= 32:
-                        raise ValueError(f'Preds and labels are not within 1 window (32 frames) of the same length: {len(preds)} vs {len(y)}')
-                    else:
-                        # If difference in length is less than 32 then we just drop the last window from y (this is a alignment issue from upsampling the labels)
-                        y = y[:len(preds)]
-
-            elif cfg['label_loading_strategy'] == 'regular':
-                preds = get_formatted_preds(cfg, logits, g, data_dict)
-                if len(preds[0][1]) != len(y):
-                    print(len(preds[0]))
-                    print(len(preds[0][1]))
-                    print(f'Preds and labels are not the same length: {len(preds[0][1])} vs {len(y)}')
+            preds = get_formatted_preds(cfg, logits, g, data_dict)
+            if len(preds[0][1]) != len(y):
+                print(len(preds[0]))
+                print(len(preds[0][1]))
+                print(f'Preds and labels are not the same length: {len(preds[0][1])} vs {len(y)}')
 
             # plot_predictions(cfg, preds)
             preds_all.extend(preds)

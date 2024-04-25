@@ -1,11 +1,11 @@
-exp_name: gravit-egoexo-subgraph-mamba # gravit-aria-base #MLP_AS_aria-lr_0.0005
+exp_name: gravit-mamba-multiview 
 model_name: SPELL # SimpleMLP 
-graph_name: egoexo-omnivore-subgraphs-multiview # name of saved dir in data/graphs
-graph_name_eval: egoexo-omnivore-subgraphs
-features_dataset: egoexo-omnivore-ego
-annotations_dataset: egoexo-omnivore-aria
+graph_name: egoexo-omnivore-regular-multiview # name of saved dir in data/graphs
+graph_name_eval: egoexo-omnivore-regular-ego # name of saved graphs with just ego view (not exo)
+features_dataset: omnivore-ego
+annotations_dataset: egoexo-regular
 is_multiview: True
-load_segmentwise: False
+load_segmentwise: False  # Load raw or segmentwise annotations to save in graph. Set to false for when batch_idxs are needed (for mamba or any other subgraph aggregation method).
 loss_name: ce #_ref
 use_spf: False
 use_ref: false
@@ -14,19 +14,18 @@ num_modality: 1
 channel1: 1536
 channel2: 1024
 final_dim: 497  # Number of classes
-input_dim: 3072 #1536  # Input dimension of features
+input_dim: 1536  # Input dimension of features
 num_att_heads: 4
 dropout: 0.5
-lr: 0.00001
-wd: 0.0001
+lr: 0.0001
+wd: 0.001
 batch_size: 1
 sch_param: 45
-num_epoch: 150
+num_epoch: 60
 sample_rate: 1
 crop: False
 eval_type: KR
-label_loading_strategy: regular
-split: 2
+
 similarity_metric: None #cosine
 similarity_threshold: 0.97
 tauf: 1

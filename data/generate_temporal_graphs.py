@@ -50,13 +50,12 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         print('Loaded segmentwise labels')
         
     else:
-        print(video_id)
         label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                        sample_rate=args.sample_rate, feature=feature, load_raw=False, verbose=0)  # or try False
-        # print(f'Lenght of label: {len(label)}')
+                        sample_rate=args.sample_rate, feature=feature, load_raw=False, verbose=0) 
+        # print(f'Length of label: {len(label)}')
 
         label, batch_idx_designation = get_segments_and_batch_idxs(label)
-        # print(f'Lenght of label: {len(label)}')
+        # print(f'Length of label: {len(label)}')
 
         
         # When segmentwise (keystep) evaluation is needed, save segmentwise labels. Otherwise. 
@@ -69,20 +68,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
             for item in string_labels:
                 f.write("%s\n" % item)
 
-
-    # ### For use with Mamba Stage 2
-    # with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'r') as f:
-    #     string_labels = [line.strip() for line in f]
-    # label = [actions[label] for label in string_labels]
-    ### 
-    
     num_frame = feature.shape[0]
-
-    # # Crop features and labels to remove action_start and action_end
-    # if args.crop == True:
-    #     feature, label = crop_to_start_and_end(feature, label)
-    #     num_frame = feature.shape[0]
-
 
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
@@ -149,7 +135,6 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     view_idx = []
 
     if num_view > 1:
-        print('Expanding label')
         feature_multiview = np.concatenate(list_feature_multiview)
         feature = np.concatenate((np.array(feature, dtype=np.float32), feature_multiview))
         label = label*num_view
@@ -162,21 +147,17 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # print(view_idx)
     # print(len(view_idx))
 
-    # if feature.shape[0] > 900:
-    #     return
-
-    if len(feature) != len(label):
-        print(video_id)
-        print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
+    # if len(feature) != len(label):
+    #     print(video_id)
+    #     print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
 
     # print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
     # print(f'Num batches: {len(np.unique(batch_idx_designation))} | Num views: {len(np.unique(view_idx))}')
 
-    
 
     graphs = Data(x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32),
                   g = all_ids.index(video_id),
-                  edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int16), dtype=torch.long),
+                  edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int32), dtype=torch.long),
                   edge_attr = torch.tensor(edge_attr, dtype=torch.float32),
                   y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long),
                   batch_idxs = torch.tensor(np.array(batch_idx_designation, dtype=np.int16), dtype=torch.long),
