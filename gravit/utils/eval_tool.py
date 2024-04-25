@@ -24,6 +24,8 @@ from .ava import standard_fields
 from mycolorpy import colorlist as mcp
 import os
 from sklearn.metrics import top_k_accuracy_score
+from gravit.utils.data_loader import load_labels, get_segments_and_batch_idxs
+
 
 def remove_directory(directory):
   if os.path.exists(directory):
@@ -544,21 +546,14 @@ def get_eval_score(cfg, preds):
 
         for (video_id, pred) in preds:
           # Get a list of ground-truth action labels
-          if 'segmentwise' in cfg['dataset']:
-            path = os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')
-            with open(path) as f:
-              label = [line.strip() for line in f]
-          else:
-            path = os.path.join(path_annts, f'{cfg["dataset"]}/trainingLabels/{video_id}.txt')
-            with open(path) as f:
-              label = [line.strip() for line in f]
-          # print(f'Loaded path: {path}')
-                  
+          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+            label = [line.strip() for line in f]
+            print(f'Loaded path: {path_annts}/{cfg["dataset"]}/groundTruth/{video_id}.txt')
+
+
           if len(label) != len(pred):
             print(f'len(pred): {len(pred)} | len(label): {len(label)}')
             print(f'Length of pred and label do not match for {video_id}')
-            # print(f'pred: {pred}')
-            # print(f'label: {label}')
             label = label[:len(pred)]
             
           # write results of each video to csv: pred vs true labels

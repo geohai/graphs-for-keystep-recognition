@@ -119,7 +119,7 @@ def load_labels(actions, root_data, annotation_dataset, video_id, sample_rate=1,
     if annotation_dataset == '50salads' or annotation_dataset == 'egoexo':
         label = load_and_trim_labels(video_id, actions, root_data=root_data, dataset=annotation_dataset, sample_rate=sample_rate, feature=feature)
     elif load_descriptions:
-        with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
+        with open(os.path.join(root_data, f'annotations/{annotation_dataset}/descriptions/{video_id}.txt')) as f:
             label = [line.strip() for line in f]
         # new_labels = [scipy.stats.mode(label[i:i+32])[0] for i in range(0, len(label), 16) if i+32 < len(label)]
         new_labels = [mode(label[i:i+32]) for i in range(0, len(label), 16) if i+32 < len(label)]

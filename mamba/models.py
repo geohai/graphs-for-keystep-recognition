@@ -23,6 +23,7 @@ class TimeSeriesTransformer(Module):
         return output
 
 
+
 class MLP(Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(MLP, self).__init__()
@@ -33,7 +34,6 @@ class MLP(Module):
         self.dropout = Dropout(0.2)
         self.pool = AdaptiveAvgPool2d((1, None))
 
-        
     def forward(self, x):
         # print(f'x: {x.shape}')
         x = self.fc1(x)
@@ -49,14 +49,15 @@ class MLP(Module):
         return x
         
 
+
 class SimpleMLP(Module):
     def __init__(self, cfg):
         input_dim = cfg['input_dim']
         final_dim = cfg['final_dim']
         hidden_size = 1056
         super(SimpleMLP, self).__init__()
-        self.fc1 = Linear(input_dim, hidden_size)  # First fully connected layer
-        self.relu = ReLU()                          # ReLU activation function
+        self.fc1 = Linear(input_dim, hidden_size) 
+        self.relu = ReLU()                          
         self.fc2 = Linear(hidden_size, final_dim)
 
     def forward(self, x):
@@ -67,7 +68,9 @@ class SimpleMLP(Module):
         x = self.fc2(x)
         return x
         
-        
+    
+
+# For 2 stage training with Mamba -> GraVi-T
 class MambaEndtoEnd(Module):
     def __init__(self, mamba_model, mamba_output_dim, embedding_output_dim):
         super().__init__()
@@ -84,31 +87,22 @@ class MambaEndtoEnd(Module):
         # x = x.mean(dim=1)
         # print(x.shape)
         return self.cls_head(x)
-    
-    def mamba_embeddings(self, x):
-        x = self.mamba(inputs_embeds=x)
-        x = x.last_hidden_state
-        return x[:, -1, :]
+
     
 
+# For 1 stage joint training of Mamba+GraVi-T
 class MambaSeqEmbedding(Module):
-    def __init__(self, mamba_model, mamba_output_dim, embedding_output_dim):
+    def __init__(self, mamba_model):
         super().__init__()
         self.mamba = mamba_model
 
     def forward(self, x):
         x = self.mamba(inputs_embeds=x)
-        # print(x)
-        x = x.last_hidden_state
-        x = x[:, -1, :]
+        x = x.last_hidden_state # last hidden state has length of sequence_length 
+        x = x[:, -1, :] # get the last element of the last hidden state corresponding to last sequence element
 
         # print(x.shape)
         # x = x.mean(dim=1)
         # print(x.shape)
         return x
-    
-    def mamba_embeddings(self, x):
-        x = self.mamba(inputs_embeds=x)
-        x = x.last_hidden_state
-        return x[:, -1, :]
 

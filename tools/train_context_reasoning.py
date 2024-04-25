@@ -72,10 +72,8 @@ def train(cfg):
     print(f'Batch size:', cfg['batch_size'])
 
 
-    # Number of accumulation steps
-    
+    # Number of accumulation steps -> smaller steps to avoid memory overflow
     accumulation_steps = 1
-
 
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
@@ -88,10 +86,7 @@ def train(cfg):
         for data in train_loader:
             optimizer.zero_grad()
             x = data.x.to(device)
-            if x.shape[0] > 900: #800 works
-                continue
-                # clear cache
-                # torch.cuda.empty_cache()
+         
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
             if 'batch_idxs' in data.keys():
@@ -106,7 +101,6 @@ def train(cfg):
                 c = data.c.to(device)
             else:
                 c = None
-                
 
             logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
             y = data.y.to(device)
@@ -164,20 +158,18 @@ def val(val_loader, use_spf, model, device, loss_func):
             edge_attr = data.edge_attr.to(device)
             c = None
             if 'batch_idxs' in data.keys():
-                batch = data.batch_idxs 
+                batch = data.batch_idxs.to(device)
             else:
                 batch = None
-            batch = batch.to(device)
+            if 'view_idxs' in data.keys():
+                view_idx = data.view_idxs.to(device)
+            else:
+                view_idx = None
             if cfg['use_spf']:
                 c = data.c.to(device)
-
                 
-            logits = model(x, edge_index, edge_attr, c, batch)
+            logits = model(x, edge_index, edge_attr, c, batch, view_idx=view_idx)
 
-            # print(y.shape)
-            # print(logits.shape)
-            # print(y)
-            # print(logits)
             if y.shape[0] != logits.shape[0]:
                 print('Shapes do not match')
                 print(f'y shape is {y.shape}')
@@ -185,13 +177,6 @@ def val(val_loader, use_spf, model, device, loss_func):
 
             loss = loss_func(logits, y)
             loss_sum += loss.item()
-
-            # if 'egoexo-omnivore' in cfg['dataset']:
-            #     preds = get_formatted_preds(cfg, logits, g, data_dict)
-            #     predictions.append(preds)
-            
-    # eval_score = get_eval_score(cfg, predictions)
-    # print('Validation f1 score:', eval_score)
 
     return loss_sum / len(val_loader)
 

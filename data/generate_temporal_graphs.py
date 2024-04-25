@@ -58,15 +58,15 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         # print(f'Length of label: {len(label)}')
 
         
-        # When segmentwise (keystep) evaluation is needed, save segmentwise labels. Otherwise. 
-        os.makedirs(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels'), exist_ok=True)
-        int_labels = np.array(label, dtype=np.int64)[::args.sample_rate]
-        reverse = {v: k for k, v in actions.items()}
-        string_labels = [reverse[i] for i in list(int_labels)]
+        # # When segmentwise (keystep) evaluation is needed, save segmentwise labels. Otherwise. 
+        # os.makedirs(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels'), exist_ok=True)
+        # int_labels = np.array(label, dtype=np.int64)[::args.sample_rate]
+        # reverse = {v: k for k, v in actions.items()}
+        # string_labels = [reverse[i] for i in list(int_labels)]
 
-        with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'w') as f:
-            for item in string_labels:
-                f.write("%s\n" % item)
+        # with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'w') as f:
+        #     for item in string_labels:
+        #         f.write("%s\n" % item)
 
     num_frame = feature.shape[0]
 

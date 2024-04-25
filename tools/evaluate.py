@@ -21,8 +21,10 @@ def evaluate(cfg):
     # name of saved graphs with just ego view (not exo)
     if 'graph_name_eval' in cfg:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name_eval"]}')
+        print(f'path_graphs: {path_graphs}')
     else:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
+        print(f'path_graphs: {path_graphs}')
     if 'split' in cfg:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_data',     type=str,   help='Root directory to the data', default='./data')
     parser.add_argument('--root_result',   type=str,   help='Root directory to output', default='./results')
-    parser.add_argument('--dataset',       type=str,   help='Name of the dataset')
+    # parser.add_argument('--dataset',       type=str,   help='Name of the dataset')
     parser.add_argument('--exp_name',      type=str,   help='Name of the experiment', required=True)
     # parser.add_argument('--eval_type',     type=str,   help='Type of the evaluation', required=True)
 
