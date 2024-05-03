@@ -1,6 +1,6 @@
 exp_name: gravit-mamba-multiview 
 model_name: SPELL # SimpleMLP 
-graph_name: egoexo-omnivore-subgraphs-multiview #egoexo-omnivore-regular-multiview # name of saved dir in data/graphs
+graph_name: egoexo-omnivore-regular-multiview # name of saved dir in data/graphs
 graph_name_eval: egoexo-omnivore-regular-ego # name of saved graphs with just ego view (not exo)
 features_dataset: omnivore-ego
 annotations_dataset: egoexo-regular

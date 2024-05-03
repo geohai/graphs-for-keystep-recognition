@@ -30,45 +30,42 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     video_id = os.path.splitext(os.path.basename(data_file))[0]
 
     # If using multiview features, remove the view number from the video_id
-    if args.is_multiview is not None and args.is_multiview == True:
-        video_id = video_id[0:-2] 
+    # if args.is_multiview is not None and args.is_multiview == True:
+    #     video_id = video_id[0:-2] 
 
     # # Load the features and labels
-    feature = load_and_fuse_modalities(data_file, combine_method='concat',  dataset=args.features, sample_rate=args.sample_rate, is_multiview=args.is_multiview)
+    feature = load_and_fuse_modalities(data_file, combine_method='concat',  dataset=args.features, sample_rate=args.sample_rate)
     list_feature_multiview = []
     for multiview_data_file in list_multiview_data_files:
         feature_multiview = np.load(multiview_data_file)
         assert feature.shape == feature_multiview.shape, f'feature.shape: {feature.shape}, feature_multiview.shape: {feature_multiview.shape}'
         list_feature_multiview.append(feature_multiview)
     
-    #  load pre-averaged segmentwise features
+    
     if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{video_id}.txt')):
             video_id = video_id.rsplit('_', 1)[0]
+
+    #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
         label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                        sample_rate=args.sample_rate, feature=None, load_raw=True, verbose=0) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
-        print('Loaded segmentwise labels')
+                        sample_rate=args.sample_rate, verbose=0) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
         
     else:
         label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                        sample_rate=args.sample_rate, feature=feature, load_raw=False, verbose=0) 
+                        sample_rate=args.sample_rate, verbose=0) 
         # print(f'Length of label: {len(label)}')
 
         label, batch_idx_designation = get_segments_and_batch_idxs(label)
-        # print(f'Length of label: {len(label)}')
+        print(f'Length of label: {len(label)}')
 
-        
-        # # When segmentwise (keystep) evaluation is needed, save segmentwise labels. Otherwise. 
-        # os.makedirs(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels'), exist_ok=True)
-        # int_labels = np.array(label, dtype=np.int64)[::args.sample_rate]
-        # reverse = {v: k for k, v in actions.items()}
-        # string_labels = [reverse[i] for i in list(int_labels)]
+    if len(feature) != len(label):
+        print(video_id)
+        print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
+        raise ValueError('Length of feature and label does not match')
 
-        # with open(os.path.join(args.root_data, f'annotations/{args.dataset}/trainingLabels/{video_id}.txt'), 'w') as f:
-        #     for item in string_labels:
-        #         f.write("%s\n" % item)
 
     num_frame = feature.shape[0]
+    # print(f'Video ID: {video_id} | Num Frames: {num_frame} | Num Labels: {len(label)}')
 
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
@@ -147,13 +144,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # print(view_idx)
     # print(len(view_idx))
 
-    # if len(feature) != len(label):
-    #     print(video_id)
-    #     print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
-
-    # print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
-    # print(f'Num batches: {len(np.unique(batch_idx_designation))} | Num views: {len(np.unique(view_idx))}')
-
+    
 
     graphs = Data(x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32),
                   g = all_ids.index(video_id),
@@ -238,6 +229,7 @@ if __name__ == "__main__":
 
         # path_graphs = os.path.join(args.root_data, f'graphs/{args.features}_{args.tauf}_{args.skip_factor}/{split}')
         path_graphs = os.path.join(args.root_data, f'graphs/{cfg["graph_name"]}/{split}')
+        
         os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
         os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
 
@@ -258,7 +250,6 @@ if __name__ == "__main__":
         #with Pool(processes=35) as pool:
         #    pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
         for data_file in list_data_files:
-            print(data_file)
             generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
 
         print (f'Graph generation for {split} is finished')
