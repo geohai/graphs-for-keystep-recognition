@@ -2,7 +2,7 @@ import os
 import glob
 import torch
 from torch.utils.data import Dataset
-from gravit.utils.data_loader import load_and_fuse_modalities, load_labels
+from gravit.utils.data_loader import load_features, load_labels
 import numpy as np
 
 # Simple dataset for non-graph structured data

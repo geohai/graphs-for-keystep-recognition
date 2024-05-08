@@ -6,7 +6,7 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool
 from torch_geometric.data import Data
-from gravit.utils.data_loader import load_and_fuse_modalities, load_labels, crop_to_start_and_end, get_segments_and_batch_idxs
+from gravit.utils.data_loader import load_features, load_labels
 from gravit.utils.parser import get_args, get_cfg
 
 
@@ -34,7 +34,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     #     video_id = video_id[0:-2] 
 
     # # Load the features and labels
-    feature = load_and_fuse_modalities(data_file, combine_method='concat',  dataset=args.features, sample_rate=args.sample_rate)
+    feature = load_features(data_file)
     list_feature_multiview = []
     for multiview_data_file in list_multiview_data_files:
         feature_multiview = np.load(multiview_data_file)
@@ -48,15 +48,16 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
         label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                        sample_rate=args.sample_rate, verbose=0) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
+                         verbose=0) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
         
     else:
-        label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                        sample_rate=args.sample_rate, verbose=0) 
-        # print(f'Length of label: {len(label)}')
+        raise ValueError('Not implemented yet')
+        # label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
+        #                 sample_rate=args.sample_rate, verbose=0) 
+        # # print(f'Length of label: {len(label)}')
 
-        label, batch_idx_designation = get_segments_and_batch_idxs(label)
-        print(f'Length of label: {len(label)}')
+        # label, batch_idx_designation = get_segments_and_batch_idxs(label)
+        # print(f'Length of label: {len(label)}')
 
     if len(feature) != len(label):
         print(video_id)

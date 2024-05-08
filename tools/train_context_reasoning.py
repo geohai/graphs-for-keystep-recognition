@@ -86,6 +86,8 @@ def train(cfg):
         for data in train_loader:
             optimizer.zero_grad()
             x = data.x.to(device)
+            y = data.y.to(device)
+            
          
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
@@ -102,8 +104,14 @@ def train(cfg):
             else:
                 c = None
 
+            # print(f'X shape: {x.shape}, Y shape: {data.y.shape}')
+            # if batch is not None:
+            #     print(f'Batch shape: {batch.shape}')
+            if x.shape[0] == 1:
+                continue
+
             logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
-            y = data.y.to(device)
+            
             loss = loss_func(logits, y)
             loss.backward()
             loss_sum += loss.item()

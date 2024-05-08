@@ -24,7 +24,7 @@ from .ava import standard_fields
 from mycolorpy import colorlist as mcp
 import os
 from sklearn.metrics import top_k_accuracy_score
-from gravit.utils.data_loader import load_labels, get_segments_and_batch_idxs
+# from gravit.utils.data_loader import load_labels, get_segments_and_batch_idxs
 
 
 def remove_directory(directory):
@@ -559,7 +559,6 @@ def get_eval_score(cfg, preds):
           # write results of each video to csv: pred vs true labels
           path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"
           pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(path, index=False)
-          # print(f'Predictions saved to {path}')
           total += len(label)
 
           for i, lb in enumerate(label):
