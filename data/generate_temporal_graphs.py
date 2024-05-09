@@ -20,7 +20,7 @@ def compute_similarity_metric(node_i, node_j, metric):
         return np.dot(node_i, node_j)
 
 
-def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[]):
+def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[], cliptext_data_file=''):
     """
     Generate temporal graphs of a single video
     """
@@ -129,6 +129,13 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # edge_index: information on how the graph nodes are connected
     # edge_attr: information about whether the edge is spatial (0) or temporal (positive: backward, negative: forward)
     # y: labels
+    if cliptext_data_file:
+        feature_cliptext = np.load(cliptext_data_file)
+
+        for i in range(num_view-1):
+            list_feature_multiview[i] = np.concatenate((list_feature_multiview[i], feature_cliptext), axis=-1)
+        feature = np.concatenate((feature, feature_cliptext), axis=-1)
+
     view_idx = []
 
     if num_view > 1:
@@ -179,6 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
     parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
     parser.add_argument('--add_multiview',   help='Whether to add multiview features', action="store_true")
+    parser.add_argument('--add_cliptext',   help='Whether to add CLIP text features', action="store_true")
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)
     
     args = parser.parse_args()
@@ -240,16 +248,29 @@ if __name__ == "__main__":
                 vid = '_'.join(os.path.basename(multiview_data).split('_')[:-1])
                 data_sp = 'train'
                 if vid not in train_ids:
-                    data_sp = 'val'
+                    #data_sp = 'val'
+                    continue
                 matching_data_file = os.path.join(args.root_data, f'features/{args.features}/{split}/{data_sp}/{vid}_0.npy')
                 assert matching_data_file in list_data_files, f'check {matching_data_file}'
                 if matching_data_file not in multiview_data_files:
                     multiview_data_files[matching_data_file] = []
                 multiview_data_files[matching_data_file].append(multiview_data)
 
+        cliptext_data_files = {}
+        if args.add_cliptext:
+            for cliptext_data in sorted(glob.glob(os.path.join(args.root_data, f'annotations/{args.dataset}/descriptions_features/*.npy'))):
+                vid = '_'.join(os.path.basename(cliptext_data).split('_')[:-1])
+                data_sp = 'train'
+                if vid not in train_ids:
+                    data_sp = 'val'
+                matching_data_file = os.path.join(args.root_data, f'features/{args.features}/{split}/{data_sp}/{vid}_0.npy')
+                assert matching_data_file in list_data_files, f'check {matching_data_file}'
+                assert matching_data_file not in cliptext_data_files, f'{matching_data_file} already in the cliptext list'
+                cliptext_data_files[matching_data_file] = cliptext_data
+
         #with Pool(processes=35) as pool:
         #    pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
         for data_file in list_data_files:
-            generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
+            generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '', cliptext_data_file=cliptext_data_files[data_file] if data_file in cliptext_data_files else '')
 
         print (f'Graph generation for {split} is finished')

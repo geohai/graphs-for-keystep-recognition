@@ -6,7 +6,7 @@ import numpy as np
 # from gravit.utils.batch_process import graph_to_nn_batch, nn_batch_to_graph, multiview_graph_to_nn_batch
 
 from transformers import MambaConfig, MambaModel
-from mamba.models import MambaSeqEmbedding
+from gravit.mamba.models import MambaSeqEmbedding
 
 
 def graph_to_nn_batch(x, batch, max_seq_len=25):
@@ -156,6 +156,7 @@ class SPELL(Module):
 
     def forward(self, x, edge_index, edge_attr, c=None, batch=None, view_idx=None):
 
+        """
         # ################################################################################
         ## Mamba
 
@@ -198,7 +199,7 @@ class SPELL(Module):
         # # print(f'x: {x.shape} | avg: {avg.shape}')
         # x = torch.cat((x, avg), dim=1)
         ################################################################
- 
+        """
 
         feature_dim = x.shape[1]
 

@@ -1,6 +1,6 @@
-exp_name: gravit-segmentwise #_t1_sf1000_innerprod # gravit-aria-base #MLP_AS_aria-lr_0.0005
+exp_name: gravit-segmentwise-cliptext #_t1_sf1000_innerprod # gravit-aria-base #MLP_AS_aria-lr_0.0005
 model_name: SPELL # SimpleMLP
-graph_name: egoexo-omnivore-segmentwise #_1_1000_innerprod # name of saved dir in data/graphs
+graph_name: egoexo-omnivore-segmentwise-cliptext #_1_1000_innerprod # name of saved dir in data/graphs
 features_dataset: omnivore-segmentwise-ego
 annotations_dataset: egoexo-segmentwise
 load_segmentwise: True
@@ -9,10 +9,10 @@ use_spf: False
 use_ref: false
 w_ref: 1
 num_modality: 1
-channel1: 1536
+channel1: 2560
 channel2: 1024
 final_dim: 495  # Number of classes
-input_dim: 1536  # Input dimension of features
+input_dim: 2560  # Input dimension of features
 num_att_heads: 4
 dropout: 0.2
 lr: 0.0001
@@ -25,5 +25,5 @@ crop: False
 eval_type: KR
 similarity_metric: None #cosine
 similarity_threshold: 0.97
-tauf: 3
+tauf: 1
 skip_factor: 1000

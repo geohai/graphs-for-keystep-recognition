@@ -91,7 +91,7 @@ def evaluate(cfg):
             preds_all.extend(preds)
             # labels_all.extend(y)
 
-            logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
+            #logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
 
 
     # Compute the evaluation score
@@ -101,6 +101,7 @@ def evaluate(cfg):
     
     
     logger.info(f'{cfg["eval_type"]} evaluation finished: {eval_score}')
+    print(f"({eval_score.split(', ')[0].split('(Acc) ')[1]}, {eval_score.split(', ')[1].split('(F1@0.1) ')[1]})")
 
 
 if __name__ == "__main__":

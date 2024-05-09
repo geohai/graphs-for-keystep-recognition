@@ -102,6 +102,8 @@ def train(cfg):
             else:
                 c = None
 
+            if x.shape[0] == 1:
+                import pdb; pdb.set_trace()
             logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
             y = data.y.to(device)
             loss = loss_func(logits, y)
