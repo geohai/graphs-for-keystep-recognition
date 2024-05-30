@@ -178,10 +178,10 @@ def val(val_loader, use_spf, model, device, loss_func):
                 
             logits = model(x, edge_index, edge_attr, c, batch, view_idx=view_idx)
 
-            if y.shape[0] != logits.shape[0]:
-                print('Shapes do not match')
-                print(f'y shape is {y.shape}')
-                print(f'Logits shape is {logits.shape}')
+            # if y.shape[0] != logits.shape[0]:
+            #     print('Shapes do not match')
+            #     print(f'y shape is {y.shape}')
+            #     print(f'Logits shape is {logits.shape}')
 
             loss = loss_func(logits, y)
             loss_sum += loss.item()

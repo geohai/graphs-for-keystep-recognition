@@ -6,7 +6,7 @@ import numpy as np
 from functools import partial
 from multiprocessing import Pool
 from torch_geometric.data import Data
-from gravit.utils.data_loader import load_features, load_labels
+from gravit.utils.data_loader import *
 from gravit.utils.parser import get_args, get_cfg
 
 
@@ -47,22 +47,22 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
-        label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-                         verbose=0) # load_raw=True for segmentwise, otherwise False to preprocess the omnivore features 
+        label = load_labels(trimmed=True, video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
+        
+        if len(feature) != len(label):
+            print(video_id)
+            print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
+            raise ValueError('Length of feature and label does not match')
         
     else:
-        raise ValueError('Not implemented yet')
-        # label = load_labels(video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset,
-        #                 sample_rate=args.sample_rate, verbose=0) 
-        # # print(f'Length of label: {len(label)}')
+        label = load_labels(trimmed=True, video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
+        # print(f'Length of label: {len(label)} | Length of feature: {len(feature)}')
+        batch_idx_path = os.path.join(args.root_data, 'annotations', args.dataset, 'batch_idx')
+        untrimmed_batch_idxs = load_batch_indices(batch_idx_path, video_id)
+        batch_idx_designation = [i for i in untrimmed_batch_idxs if i != -1]
+        label = get_segment_labels_by_batch_idxs(label, batch_idx_designation=batch_idx_designation)
+        label = [mode(label[i]) for i in range(len(label))]
 
-        # label, batch_idx_designation = get_segments_and_batch_idxs(label)
-        # print(f'Length of label: {len(label)}')
-
-    if len(feature) != len(label):
-        print(video_id)
-        print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
-        raise ValueError('Length of feature and label does not match')
 
 
     num_frame = feature.shape[0]
@@ -145,7 +145,6 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
     # print(view_idx)
     # print(len(view_idx))
 
-    
 
     graphs = Data(x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32),
                   g = all_ids.index(video_id),

@@ -12,7 +12,6 @@ from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 import seaborn as sns
 from sklearn.metrics import f1_score
-from gravit.utils.data_loader import crop_to_start_and_end
 import shutil
 import torch
 from collections import defaultdict
@@ -24,7 +23,6 @@ from .ava import standard_fields
 from mycolorpy import colorlist as mcp
 import os
 from sklearn.metrics import top_k_accuracy_score
-# from gravit.utils.data_loader import load_labels, get_segments_and_batch_idxs
 
 
 def remove_directory(directory):
