@@ -20,9 +20,9 @@ def compute_similarity_metric(node_i, node_j, metric):
         return np.dot(node_i, node_j)
 
 
-def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[]):
+def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[]):
     """
-    Generate temporal graphs of a single video
+    Generate heterogeneous temporal graphs of a single video
     """
 
     skip = args.skip_factor
@@ -272,7 +272,7 @@ if __name__ == "__main__":
         #with Pool(processes=35) as pool:
         #    pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
         for data_file in list_data_files:
-            generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
+            generate_heterogeneous_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
 
         # 
 
