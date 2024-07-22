@@ -1,6 +1,7 @@
 import os
 import glob
 import torch
+import h5py
 import argparse
 import numpy as np
 from functools import partial
@@ -101,7 +102,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
             # Make additional connections between non-adjacent nodes
             # This can help reduce over-segmentation of predictions in some cases
             elif skip:
-                if (frame_diff % skip == 0) and (abs(frame_diff) <= skip*args.tauf):
+                if (frame_diff % skip == 0) and (abs(frame_diff) <= skip * args.tauf):
                     node_source.append(i)
                     node_target.append(j)
                     edge_attr.append(np.sign(frame_diff))
