@@ -87,6 +87,7 @@ def evaluate_heterogeneous(cfg):
 
             # Change the format of the model output
             preds = get_formatted_preds(cfg, logits, g, data_dict)
+            print(preds)
             if len(preds[0][1]) != len(y):
                 print(len(preds[0]))
                 print(len(preds[0][1]))

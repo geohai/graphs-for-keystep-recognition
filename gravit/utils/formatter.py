@@ -37,7 +37,7 @@ def get_formatting_data_dict(cfg):
                                                       'frame_timestamp': frame_timestamp,
                                                       'person_box': entity['person_box'],
                                                       'person_id': entity['person_id']}
-    elif 'AS' in cfg['eval_type']:
+    elif 'AS' in cfg['eval_type'] or 'KR' in cfg['eval_type']:
         # Build a mapping from action ids to action classes
         data_dict['actions'] = {}
         with open(os.path.join(root_data, 'annotations', dataset, 'mapping.txt')) as f:
@@ -81,7 +81,7 @@ def get_formatted_preds(cfg, logits, g, data_dict):
                 for action_id, score in enumerate(scores, 1):
                     pred = [video_id, frame_timestamp, x1, y1, x2, y2, action_id, score]
                     preds.append(pred)
-    elif 'AS' in eval_type:
+    elif 'AS' in eval_type or 'KR' in eval_type:
         tmp = logits
         if cfg['use_ref']:
             tmp = logits[-1]

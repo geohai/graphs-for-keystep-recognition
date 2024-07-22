@@ -41,7 +41,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
             take_name = take_name.rsplit('_', 1)[0]
 
-    text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
+    if args.add_text:
+        if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
+            return
+        text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
+    else:
+        text_feature = [[]]
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
@@ -53,7 +58,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
             raise ValueError('Length of feature and label does not match')
         
     else:
-
         label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
         # print(f'Length of label: {len(label)} | Length of feature: {len(feature)}')
         batch_idx_path = os.path.join(args.root_data, 'annotations', args.dataset, 'batch_idx')
@@ -101,13 +105,15 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     for k in range(1, num_view):
                         node_source.append(i)
                         node_target.append(j+num_frame*k)
-                        edge_attr.append(1)
+                        edge_attr.append(-1)
 
                 # add edges between heterogenous nodes (text to ego) in the same frame
                 if frame_diff == 0:
-                    hetero_node_source.append(i) # text and ego omnivore views match 
-                    hetero_node_target.append(i) 
-                    hetero_edge_attr.append(1)
+                    if args.add_text:
+                        hetero_node_source.append(i)
+                        hetero_node_target.append(j)
+                        hetero_edge_attr.append(-1)
+                        
 
             # Make additional connections between non-adjacent nodes
             # This can help reduce over-segmentation of predictions in some cases
@@ -146,23 +152,21 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         feature_multiview = np.concatenate(list_feature_multiview)
         feature = np.concatenate((np.array(feature, dtype=np.float32), feature_multiview))
         label = label*num_view
-      
+     
     
     graphs = HeteroData()
 
-    # define node types and their corresponding features [num_nodes, num_features]
+    # define node types and their feature matrix [num_nodes, num_features]
     graphs['omnivore'].x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32)
-    graphs['omnivore'].num_nodes = num_frame*num_view
-    graphs['omnivore'].num_views = num_view
+    graphs['omnivore', 'to', 'omnivore'].edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int32), dtype=torch.long)
+    graphs['omnivore', 'to', 'omnivore'].edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+    g = all_ids.index(take_name)
+    graphs['omnivore'].g = torch.tensor([g], dtype=torch.long)
+
     graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
-    graphs['text'].num_nodes = num_frame
-
-    # define edge types and their corresponding edge_index [2, num_edges]
-    graphs['omnivore', 'cross_view', 'omnivore'].edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int32), dtype=torch.long)
-    graphs['omnivore', 'cross_view', 'omnivore'].edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
-
-    graphs['text', 'text_to_ego', 'omnivore'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
-    graphs['text', 'text_to_ego', 'omnivore'].edge_attr = hetero_edge_attr
+    graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
+    graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(hetero_edge_attr, dtype=torch.float32)
+    
 
     # labels for omnivore nodes 
     graphs['omnivore'].y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long)
@@ -267,6 +271,8 @@ if __name__ == "__main__":
         if args.add_text:
             text_dir = os.path.join(args.root_data, f'features/{cfg["text_dataset"]}/')
             args.text_dir = text_dir
+        else:
+            args.text_dir = None
 
 
         #with Pool(processes=35) as pool:
@@ -274,6 +280,5 @@ if __name__ == "__main__":
         for data_file in list_data_files:
             generate_heterogeneous_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
 
-        # 
 
         print (f'Graph generation for {split} is finished')

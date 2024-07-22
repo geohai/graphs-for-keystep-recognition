@@ -129,7 +129,6 @@ if __name__ == "__main__":
     parser.add_argument('--root_result',   type=str,   help='Root directory to output', default='./results')
     parser.add_argument('--dataset',       type=str,   help='Name of the dataset')
     parser.add_argument('--exp_name',      type=str,   help='Name of the experiment', required=True)
-
     parser.add_argument('--eval_type',     type=str,   help='Type of the evaluation', required=True)
     parser.add_argument('--split',         type=int,   help='Split to evaluate')
     parser.add_argument('--all_splits',    action='store_true',   help='Evaluate all splits')
