@@ -1,0 +1,29 @@
+exp_name: gravit-segmentwise-h-cliptext #_t1_sf1000_innerprod # gravit-aria-base #MLP_AS_aria-lr_0.0005
+model_name: STHG # SimpleMLP
+graph_name: egoexo-omnivore-segmentwise-h-cliptext #_1_1000_innerprod # name of saved dir in data/graphs
+features_dataset: omnivore-segmentwise-ego
+annotations_dataset: egoexo-segmentwise
+load_segmentwise: True
+loss_name: ce #_ref
+use_spf: False
+use_ref: false
+w_ref: 1
+num_modality: 1
+channel1: 1536
+channel2: 1024
+final_dim: 495  # Number of classes
+input_dim: 1536  # Input dimension of features
+num_att_heads: 0
+dropout: 0.2
+lr: 0.0001
+wd: 0.0005
+batch_size: 1
+sch_param: 45
+num_epoch: 60
+sample_rate: 1
+crop: False
+eval_type: KR
+similarity_metric: None #cosine
+similarity_threshold: 0.97
+tauf: 1
+skip_factor: 1000
