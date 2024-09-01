@@ -50,11 +50,9 @@ def evaluate_heterogeneous(cfg):
     logger.info('Loading the trained model')
     state_dict = torch.load(os.path.join(path_result, 'ckpt_best.pt'), map_location=torch.device('cpu'))
 
-    # only load the graph features unrelated to text nodes or edges
-    keys_to_keep = [key for key in state_dict.keys() if 'text' not in key]
-    state_dict = {key: state_dict[key] for key in keys_to_keep if key in state_dict}
-    # # Create a new state dict with the filtered keys
-    # new_state_dict = {key.replace('.', '_'): value for key, value in filtered_state_dict.items()}
+    # # only load the graph features unrelated to text nodes or edges
+    # keys_to_keep = [key for key in state_dict.keys() if 'text' not in key]
+    # state_dict = {key: state_dict[key] for key in keys_to_keep if key in state_dict}
 
     model.load_state_dict(state_dict)
     model.eval()
