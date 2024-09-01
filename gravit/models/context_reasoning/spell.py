@@ -5,8 +5,8 @@ import torch_geometric
 import numpy as np
 # from gravit.utils.batch_process import graph_to_nn_batch, nn_batch_to_graph, multiview_graph_to_nn_batch
 
-from transformers import MambaConfig, MambaModel
-from mamba.models import MambaSeqEmbedding
+# from transformers import MambaConfig, MambaModel
+# from mamba.models import MambaSeqEmbedding
 
 
 def graph_to_nn_batch(x, batch, max_seq_len=25):
@@ -107,21 +107,20 @@ class SPELL(Module):
         num_att_heads = cfg['num_att_heads']
         dropout = cfg['dropout']
 
-        ######## SUBGRAPH AGGREGATION ########
-        self.max_seq_len = 25
-        mamba_config= MambaConfig(vocab_size=497, hidden_size=1536, num_hidden_layers=4) # ~30M params with this config
-        model = MambaModel(mamba_config)
-        model = MambaSeqEmbedding(model) # wrapper to access the mamba features
+        # ######## SUBGRAPH AGGREGATION ########
+        # self.max_seq_len = 25
+        # mamba_config= MambaConfig(vocab_size=497, hidden_size=1536, num_hidden_layers=4) # ~30M params with this config
+        # model = MambaModel(mamba_config)
+        # model = MambaSeqEmbedding(model) # wrapper to access the mamba features
 
-        # self.subgraph_agg = model
-        self.subgraph_agg = torch.nn.DataParallel(model) # Distribute Mamba across available GPUs
-        # self.average_subgraph = torch_geometric.nn.pool.global_mean_pool # for calculating segment average features
-        ######################################
+        # # self.subgraph_agg = model
+        # self.subgraph_agg = torch.nn.DataParallel(model) # Distribute Mamba across available GPUs
+        # # self.average_subgraph = torch_geometric.nn.pool.global_mean_pool # for calculating segment average features
+        # ######################################
 
         if self.use_spf:
             self.layer_spf = Linear(-1, cfg['proj_dim']) # projection layer for spatial features
 
-        print(f'Input dim: {input_dim}  Final dim: {final_dim}')
         self.layer011 = Linear(input_dim, channels[0]) 
         if self.num_modality == 2:
             self.layer012 = Linear(-1, channels[0])
@@ -294,9 +293,7 @@ class SPELL(Module):
     
     def rebuild_edge_matrix_multiview(self, x, view_idx):              
         num_view = torch.unique(view_idx).shape[0]
-        # print(f'Num views: {num_view}')
         num_frame = x.shape[0] // num_view  # num frames is the number of batches
-        # print(f'Num frames: {num_frame}')
         node_source = []
         node_target = []
         edge_attr = []
@@ -329,87 +326,3 @@ class SPELL(Module):
 
         return edge_index, edge_attr
         
-
-    # def concatenate_frames_in_subgraph(self, x, batch):
-    #     ##########
-    #     # Concatenate within batch
-    #     for count, b in enumerate(batch.unique(sorted=True)):
-    #         this_batch_features = x[batch == b]
-    #         # Reduce subgraph to concatenated feature vector
-    #         for i, this_feature in enumerate(this_batch_features):
-    #             this_feature = this_feature.unsqueeze(0)
-    #             if i == 0:
-    #                 concated = this_feature
-    #             else:
-    #                 concated = torch.cat((concated, this_feature), dim=1)
-
-    #         # If subgraph num nodes is not equal to the max num nodes in the batch, pad with zeros
-    #         if concated.shape[1] > 10*2048:
-    #             concated = concated[:, :10*2048]
-    #         elif concated.shape[1] < 10*2048:
-    #             padding = torch.zeros(concated.shape[0], (10*2048-concated.shape[1])).to(concated.device)
-    #             concated = torch.cat((concated, padding), dim=1)
-
-    #         # Append each subgraph's feature vector to the new out tensor
-    #         if count == 0:
-    #             new_out = concated
-    #         else:
-    #             new_out = torch.cat((new_out, concated), dim=0)
-
-    #         new_out = new_out.to(x.device)
-    #     return new_out
-    
-
-    # def pool(self, pooling_layer, x, edge_index, edge_attr, batch):
-    #     # print(f'Before pooling - x: {x.shape}')
-    #     # print(f'Batch: {batch.shape}')
-    #     out = pooling_layer.forward(x, edge_index, edge_attr, batch)
-    #     x = out[0]
-    #     batch = out[3]
-    #     edge_index, edge_attr = self.rebuild_edge_matrix(x)
-    #     edge_index_f = edge_index[:, edge_attr<=0]
-    #     edge_index_b = edge_index[:, edge_attr>=0]
-    #     return x, edge_index, edge_attr, batch, edge_index_f, edge_index_b
-
-    # def pooling_layer(self, x, edge_index, edge_attr, batch):
-            
-    #         if self.pooling_method == 'topk' or self.pooling_method == 'adaptive':
-    #             out = self.pooling1.forward(x, edge_index, edge_attr, batch)
-    #             x = out[0]
-    #             batch = out[3]
-
-    #             x = self.pooling2(x, batch)
-    #             edge_index, edge_attr = self.rebuild_edge_matrix(x)
-
-    #         elif self.pooling_method == 'concatenate':
-    #             print(f'Before pooling - x: {x.shape}')
-    #             for count, b in enumerate(batch.unique(sorted=True)):
-    #                 this_batch_features = x[batch == b]
-
-    #                 for i, this_feature in enumerate(this_batch_features):
-    #                     this_feature = this_feature.unsqueeze(0)
-    #                     if i == 0:
-    #                         concated = this_feature
-    #                     else:
-    #                         concated = torch.cat((concated, this_feature), dim=1)
-
-    #                 x = torch_geometric.nn.pool.global_mean_pool(concated)
-
-    #                 if count == 0:
-    #                     new_x = x
-    #                 else:
-    #                     new_x = torch.cat((new_x, x), dim=1)
-
-    #                 new_x = new_x.to(x.device)
-    #                 new_batch = torch.arange(0, new_x.shape[0], 1).to(x.device)
-                
-  
-    #             batch = new_batch
-
-    #             edge_index, edge_attr = self.rebuild_edge_matrix(x)
-
-    #         # print(f'Pooling operation Final: x: {x.shape} | edge_index: {edge_index.shape} | edge_attr: {edge_attr.shape} | batch: {batch.shape}') # | perm: {perm.shape} | score: {score}
-    #         return x, edge_index, edge_attr, batch
-    
-
-

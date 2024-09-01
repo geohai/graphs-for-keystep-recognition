@@ -55,7 +55,7 @@ class SPELL_HETEROGENEOUS(Module):
          
         # hetero gnn
         if self.add_text:
-            text_input_dim = 512
+            text_input_dim = cfg.get('text_input_dim', 1024)
             self.layer011_text = Linear(text_input_dim, channels[0])
             node_types = ['text', 'omnivore']
             edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text')] 

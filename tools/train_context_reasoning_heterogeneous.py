@@ -73,9 +73,6 @@ def train(cfg):
         for data in train_loader:
             optimizer.zero_grad()
 
-            # print(data.to_dict())
-            # print(data.metadata)
-
             data = data.to(device)
 
             y = data.y_dict['omnivore'].to(device)

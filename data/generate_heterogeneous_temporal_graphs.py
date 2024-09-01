@@ -36,17 +36,35 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         feature_multiview = np.load(multiview_data_file)
         assert feature.shape == feature_multiview.shape, f'feature.shape: {feature.shape}, feature_multiview.shape: {feature_multiview.shape}'
         list_feature_multiview.append(feature_multiview)
-    
-    
-    if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
-            take_name = take_name.rsplit('_', 1)[0]
+
 
     if args.add_text:
         if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
-            return
+            raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
+            # print(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
+            # return
         text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
     else:
         text_feature = [[]]
+
+ 
+    if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
+        take_name = take_name.rsplit('_', 1)[0]
+
+
+    ############ REMOVE ############
+    # load features
+    text_feature2 = load_features(os.path.join(f'/home/juro4948/gravit/GraVi-T/data/features/{args.object_position_nodes}', take_name + '.npy'))
+    text_feature2 = text_feature2.reshape(text_feature2.shape[0], text_feature2.shape[1]*text_feature2.shape[2])
+    # print(f'text_feature.shape: {text_feature2.shape}')
+
+    # concatenate 
+    print(f'Concatenating text and heatmap')
+    text_feature = np.hstack((text_feature, text_feature2))
+
+    print(f'text_feature.shape: {text_feature.shape}')
+
+    ################################
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
@@ -209,6 +227,8 @@ if __name__ == "__main__":
         cfg = get_cfg(args)
         print(cfg)
 
+    if cfg['object_position_nodes'] is not None:
+        args.object_position_nodes = cfg['object_position_nodes']
     if args.features is None:
         args.features = cfg['features_dataset']
     if args.dataset is None:
@@ -269,7 +289,7 @@ if __name__ == "__main__":
                 multiview_data_files[matching_data_file].append(multiview_data)
 
         if args.add_text:
-            text_dir = os.path.join(args.root_data, f'features/{cfg["text_dataset"]}/')
+            text_dir = os.path.join(args.root_data, f'annotations/{cfg["annotations_dataset"]}/{cfg["text_dataset"]}/')
             args.text_dir = text_dir
         else:
             args.text_dir = None

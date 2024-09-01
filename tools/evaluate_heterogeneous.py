@@ -22,12 +22,11 @@ def evaluate_heterogeneous(cfg):
     # name of saved graphs with just ego view (not exo)
     if 'graph_name_eval' in cfg:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name_eval"]}')
-        # print(f'path_graphs: {path_graphs}')
     else:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
-        # print(f'path_graphs: {path_graphs}')
-    if 'split' in cfg:
-        path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
+  
+
+    path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
 
     # Prepare the logger
@@ -39,7 +38,7 @@ def evaluate_heterogeneous(cfg):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     # model = build_model(cfg, device)
-    model = SPELL_HETEROGENEOUS(cfg, add_text=False).to(device)
+    model = SPELL_HETEROGENEOUS(cfg, add_text=True).to(device)
 
 
     print(f'Loading the data from {path_graphs}')
@@ -87,7 +86,6 @@ def evaluate_heterogeneous(cfg):
 
             # Change the format of the model output
             preds = get_formatted_preds(cfg, logits, g, data_dict)
-            print(preds)
             if len(preds[0][1]) != len(y):
                 print(len(preds[0]))
                 print(len(preds[0][1]))

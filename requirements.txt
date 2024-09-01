@@ -9,3 +9,4 @@ torchvision==0.14.1+cu116
 torch-scatter==2.1.1
 torch-sparse==0.6.17
 torch-geometric
+open_clip_torch

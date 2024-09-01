@@ -26,10 +26,9 @@ def train(cfg):
 
     # Input and output paths
     path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
-    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     if cfg['split'] is not None:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
-        path_result = os.path.join(path_result, f'split{cfg["split"]}')
+    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     os.makedirs(path_result, exist_ok=True)
     print(cfg)
 
@@ -46,18 +45,8 @@ def train(cfg):
     print(device)
     model = build_model(cfg, device)
     model.to(device)
-    # model = torch.nn.DataParallel(model, device_ids=[0, 1])
-    
 
-    # model = DDP(model)
 
-   
-    # # Load checkpoint weights
-    # checkpoint_path = 'results/SPELL_AS_default/ckpt_best.pt'
-    # checkpoint = torch.load(checkpoint_path)
-    # # print(checkpoint)
-    # model.load_state_dict(checkpoint)
-    print(path_graphs)
     train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
     val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
@@ -73,8 +62,6 @@ def train(cfg):
     print(f'Batch size:', cfg['batch_size'])
 
 
-    # Number of accumulation steps -> smaller steps to avoid memory overflow
-    accumulation_steps = 1
 
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
@@ -110,6 +97,8 @@ def train(cfg):
             #     print(f'Batch shape: {batch.shape}')
             if x.shape[0] == 1:
                 continue
+
+            print(f'x shape: {x.shape}')
 
             logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
             

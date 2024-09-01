@@ -41,6 +41,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         feature_multiview = np.load(multiview_data_file)
         assert feature.shape == feature_multiview.shape, f'feature.shape: {feature.shape}, feature_multiview.shape: {feature_multiview.shape}'
         list_feature_multiview.append(feature_multiview)
+        print(f'Loaded multiview feature from {multiview_data_file}')
     
     
     if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{video_id}.txt')):
