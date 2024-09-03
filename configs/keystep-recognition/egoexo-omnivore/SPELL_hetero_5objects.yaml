@@ -5,9 +5,10 @@ graph_name: segmentwise-hetero-multiview   # name of saved dir in data/graphs
 graph_name_eval: segmentwise-hetero-ego # when the training data is multiview, the eval data has to be single view
 features_dataset: omnivore-segmentwise-ego
 annotations_dataset: egoexo-segmentwise
-text_dataset: detic-object-list-anchors_hands_sorted_features
-# detic-object-list-3objects_sorted_features #videorecap-clip_features #clip-videorecap-feats #vrecap-segment-keystep_features #clip-aad-feats #clip-keystep-description #
-object_position_nodes: heatmap_mean #features_5objects
+# text_dataset: detic-object-list-anchors_hands_sorted_features
+spatial_dataset: depthmap #composite_40 #features_5objects
+
+
 load_segmentwise: True
 loss_name: ce #_ref
 use_spf: False
@@ -16,7 +17,7 @@ w_ref: 1
 num_modality: 1
 channel1: 1536
 channel2: 1024
-text_input_dim: 2624
+text_input_dim: 1009
 final_dim: 495  # Number of classes
 input_dim: 1536  # Input dimension of features
 num_att_heads: 4
