@@ -34,8 +34,16 @@ def load_batch_indices(batch_idx_path, take_name):
     return loaded
 
 
-def load_features(data_file):
-    return np.load(data_file)
+def load_features(filepath):
+    return np.load(filepath, allow_pickle=True)
+
+
+def load_spatial_features(filepath, verbose=False):
+    spatial_feature = load_features(filepath)
+    # spatial_feature = spatial_feature.reshape(spatial_feature.shape[0], spatial_feature.shape[1]*spatial_feature.shape[2])
+    if verbose:
+        print(f'Shape of spatial features: {spatial_feature.shape}')
+    return spatial_feature
 
 
 def load_labels(actions, root_data, annotation_dataset, video_id,  load_descriptions=False, trimmed=True):

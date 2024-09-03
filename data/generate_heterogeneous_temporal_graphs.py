@@ -41,30 +41,32 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     if args.add_text:
         if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
             raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
-            # print(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
-            # return
         text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
-    else:
-        text_feature = [[]]
 
  
     if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
         take_name = take_name.rsplit('_', 1)[0]
 
+    # load object features
+    if args.add_spatial_features:
+        spatial_feature = load_spatial_features(filepath=os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy'),
+                                            verbose=False)
+    # feature = spatial_feature
+        # create a random vector that is the same size as a single object feature
+        # spatial_feature = np.random.rand(spatial_feature.shape[0], spatial_feature.shape[1])
 
-    ############ REMOVE ############
-    # load features
-    text_feature2 = load_features(os.path.join(f'/home/juro4948/gravit/GraVi-T/data/features/{args.object_position_nodes}', take_name + '.npy'))
-    text_feature2 = text_feature2.reshape(text_feature2.shape[0], text_feature2.shape[1]*text_feature2.shape[2])
-    # print(f'text_feature.shape: {text_feature2.shape}')
+        
+    # concat 
+    if args.add_text and args.add_spatial_features:
+        node_feature = np.hstack((text_feature, spatial_feature))
+    elif args.add_text:
+        node_feature = text_feature
+    elif args.add_spatial_features:
+        node_feature = spatial_feature
 
-    # concatenate 
-    print(f'Concatenating text and heatmap')
-    text_feature = np.hstack((text_feature, text_feature2))
+    # print(f'node_feature.shape: {node_feature.shape}')
 
-    print(f'text_feature.shape: {text_feature.shape}')
 
-    ################################
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
@@ -77,7 +79,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         
     else:
         label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
-        # print(f'Length of label: {len(label)} | Length of feature: {len(feature)}')
         batch_idx_path = os.path.join(args.root_data, 'annotations', args.dataset, 'batch_idx')
         untrimmed_batch_idxs = load_batch_indices(batch_idx_path, take_name)
         batch_idx_designation = [i for i in untrimmed_batch_idxs if i != -1]
@@ -87,7 +88,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
 
     num_frame = feature.shape[0]
-    # print(f'take_name: {take_name} | Num Frames: {num_frame} | Num Labels: {len(label)}')
 
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
@@ -181,7 +181,8 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     g = all_ids.index(take_name)
     graphs['omnivore'].g = torch.tensor([g], dtype=torch.long)
 
-    graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
+
+    graphs['text'].x = torch.tensor(np.array(node_feature, dtype=np.float32), dtype=torch.float32)
     graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
     graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(hetero_edge_attr, dtype=torch.float32)
     
@@ -215,9 +216,9 @@ if __name__ == "__main__":
     parser.add_argument('--tauf',          type=int,   help='Maximum frame difference between neighboring nodes', required=False)
     parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=1000)
     parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
-    # parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
     parser.add_argument('--add_multiview',   help='Whether to add multiview features', action="store_true")
     parser.add_argument('--add_text',   help='Whether to add text features', action="store_true")
+    parser.add_argument('--add_spatial_features',   help='Whether to add text features', action="store_true")
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)
     
     args = parser.parse_args()
@@ -227,8 +228,6 @@ if __name__ == "__main__":
         cfg = get_cfg(args)
         print(cfg)
 
-    if cfg['object_position_nodes'] is not None:
-        args.object_position_nodes = cfg['object_position_nodes']
     if args.features is None:
         args.features = cfg['features_dataset']
     if args.dataset is None:
@@ -289,10 +288,10 @@ if __name__ == "__main__":
                 multiview_data_files[matching_data_file].append(multiview_data)
 
         if args.add_text:
-            text_dir = os.path.join(args.root_data, f'annotations/{cfg["annotations_dataset"]}/{cfg["text_dataset"]}/')
-            args.text_dir = text_dir
-        else:
-            args.text_dir = None
+            args.text_dir = os.path.join(args.root_data, f'annotations/{cfg["annotations_dataset"]}/{cfg["text_dataset"]}/')
+
+        if args.add_spatial_features:
+            args.spatial_dir = cfg['spatial_dataset']
 
 
         #with Pool(processes=35) as pool:
