@@ -1,11 +1,11 @@
 exp_name: gravit-segmentwise-multiview-heterogeneous 
 model_name: SPELL_HETEROGENEOUS # SimpleMLP
-graph_name: egoexo-omnivore-segmentwise-hetero-multiview-text #-multiview  name of saved dir in data/graphs
-# graph_name: egoexo-omnivore-segmentwise-hetero-ego
-graph_name_eval: egoexo-omnivore-segmentwise-hetero-ego # when the training data is multiview, the eval data has to be single view
+graph_name: segmentwise-hetero-multiview-text #-multiview  name of saved dir in data/graphs
+# graph_name: segmentwise-hetero-ego-text
+graph_name_eval: segmentwise-hetero-ego-text # when the training data is multiview, the eval data has to be single view
 features_dataset: omnivore-segmentwise-ego
 annotations_dataset: egoexo-segmentwise
-text_dataset: clip-aad-feats #clip-keystep-description #
+text_dataset: detic-object-list-3times_features #detic-object-list-3times_ordinal_encoding #videorecap-clip_features #clip-videorecap-feats #vrecap-segment-keystep_features #clip-aad-feats #clip-keystep-description #
 load_segmentwise: True
 loss_name: ce #_ref
 use_spf: False
@@ -14,6 +14,7 @@ w_ref: 1
 num_modality: 1
 channel1: 1536
 channel2: 1024
+text_input_dim: 300
 final_dim: 495  # Number of classes
 input_dim: 1536  # Input dimension of features
 num_att_heads: 4
