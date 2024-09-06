@@ -39,9 +39,12 @@ class Refinement(Module):
 
 
 class SPELL_HETEROGENEOUS(Module):
-    def __init__(self, cfg, add_text=True):
+    def __init__(self, cfg):
         super(SPELL_HETEROGENEOUS, self).__init__()
-        self.add_text = add_text
+        self.add_text = cfg['add_text']
+        self.add_spatial = cfg['add_spatial']
+        print('Add text:', self.add_text)
+        print('Add spatial:', self.add_spatial)
         self.use_spf = cfg['use_spf'] # whether to use the spatial features
         self.num_modality = cfg['num_modality']
         if self.use_spf:
@@ -54,12 +57,27 @@ class SPELL_HETEROGENEOUS(Module):
         self.layer011_omnivore = Linear(input_dim, channels[0]) 
          
         # hetero gnn
-        if self.add_text:
-            text_input_dim = cfg.get('text_input_dim', 1024)
+        if self.add_spatial and not self.add_text:
+            spatial_input_dim = cfg['spatial_input_dim']
+            self.layer011_spatial = Linear(spatial_input_dim, channels[0])
+            node_types = ['spatial', 'omnivore']
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('spatial', 'to', 'spatial'), ('omnivore', 'to', 'spatial')] # 
+
+        elif self.add_text and not self.add_spatial:
+            text_input_dim = cfg['text_input_dim']
             self.layer011_text = Linear(text_input_dim, channels[0])
             node_types = ['text', 'omnivore']
-            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text')] 
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('text', 'to', 'text')] 
 
+
+        elif self.add_text and self.add_spatial:
+            spatial_input_dim = cfg['spatial_input_dim']
+            text_input_dim = cfg['text_input_dim']
+            self.layer011_text = Linear(text_input_dim, channels[0])
+            self.layer011_spatial = Linear(spatial_input_dim, channels[0])
+            node_types = ['text', 'spatial', 'omnivore']
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('omnivore', 'to', 'spatial'), ('text', 'to', 'text'), ('text', 'to', 'spatial'), ('spatial', 'to', 'spatial')]
+        
         else:
             node_types = ['omnivore']
             edge_types = [ ('omnivore', 'to', 'omnivore')]
@@ -71,11 +89,11 @@ class SPELL_HETEROGENEOUS(Module):
         # print('Model:', self.model)
 
     def forward(self, data: HeteroData, c=None):
-        if self.add_text == False:
+        if self.add_text == False and self.add_spatial == False:
             data.x_dict = {'omnivore': data.x_dict['omnivore']}
             data.edge_index_dict = {('omnivore', 'to', 'omnivore'): data.edge_index_dict['omnivore', 'to', 'omnivore']}
             data.edge_attr_dict = {('omnivore', 'to', 'omnivore'): data.edge_attr_dict['omnivore', 'to', 'omnivore']}
-
+        
 
         if self.use_spf:
             feature_dim = data.x_dict['omnivore'].shape[1]
@@ -85,6 +103,10 @@ class SPELL_HETEROGENEOUS(Module):
                 feature_dim = data.x_dict['text'].shape[1]
                 x = data.x_dict['text']
                 x_text = self.layer011_text(torch.cat((x[:, :feature_dim//self.num_modality], self.layer_spf(c)), dim=1)) 
+            if 'spatial' in data.x_dict.keys():
+                feature_dim = data.x_dict['spatial'].shape[1]
+                x = data.x_dict['spatial']
+                x_spatial = self.layer011_spatial(torch.cat((x[:, :feature_dim//self.num_modality], self.layer_spf(c)), dim=1))
 
         else:
             feature_dim = data.x_dict['omnivore'].shape[1]
@@ -94,14 +116,17 @@ class SPELL_HETEROGENEOUS(Module):
                 feature_dim = data.x_dict['text'].shape[1]
                 x = data.x_dict['text']
                 x_text = self.layer011_text(x[:, :feature_dim//self.num_modality]) 
+            if 'spatial' in data.x_dict.keys():
+                feature_dim = data.x_dict['spatial'].shape[1]
+                x = data.x_dict['spatial']
+                x_spatial = self.layer011_spatial(x[:, :feature_dim//self.num_modality])
 
-
-        # print(f'Omnivore input shape: {x_omnivore.shape}')
-        # print(f'Text input shape: {x_text.shape}')
 
         data['omnivore'].x = x_omnivore
         if 'text' in data.x_dict.keys():
             data['text'].x = x_text
+        if 'spatial' in data.x_dict.keys():
+            data['spatial'].x = x_spatial
 
         
         # print('---------')

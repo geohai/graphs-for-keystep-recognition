@@ -17,7 +17,7 @@ w_ref: 1
 num_modality: 1
 channel1: 1536
 channel2: 1024
-text_input_dim: 1009
+spatial_input_dim: 3136
 final_dim: 495  # Number of classes
 input_dim: 1536  # Input dimension of features
 num_att_heads: 4

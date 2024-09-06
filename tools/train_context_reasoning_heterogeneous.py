@@ -8,7 +8,7 @@ from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
 from gravit.datasets import GraphDataset
-
+import argparse
 from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds, get_formatted_preds_egoexo_omnivore, get_formatted_preds_framewise
 from gravit.utils.eval_tool import get_eval_score
 
@@ -28,6 +28,7 @@ def train(cfg):
     path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
     if cfg['split'] is not None:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
+    print(f'path_graphs:', path_graphs)
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     os.makedirs(path_result, exist_ok=True)
     print(cfg)
@@ -55,7 +56,7 @@ def train(cfg):
     loss_func_val = get_loss_func(cfg, 'val')
     optimizer = optim.Adam(model.parameters(), lr=cfg['lr'], weight_decay=cfg['wd'])
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg['sch_param'])
-
+       
     # Run the training process
     logger.info('Training process started')
     print(f'Length of train_loader:', len(train_loader))

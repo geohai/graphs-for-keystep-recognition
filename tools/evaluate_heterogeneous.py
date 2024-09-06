@@ -38,7 +38,7 @@ def evaluate_heterogeneous(cfg):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     # model = build_model(cfg, device)
-    model = SPELL_HETEROGENEOUS(cfg, add_text=True).to(device)
+    model = SPELL_HETEROGENEOUS(cfg).to(device)
 
 
     print(f'Loading the data from {path_graphs}')
@@ -54,6 +54,7 @@ def evaluate_heterogeneous(cfg):
     # keys_to_keep = [key for key in state_dict.keys() if 'text' not in key]
     # state_dict = {key: state_dict[key] for key in keys_to_keep if key in state_dict}
 
+    print(f'Loading the model state dict: {state_dict.keys()}')
     model.load_state_dict(state_dict)
     model.eval()
 
