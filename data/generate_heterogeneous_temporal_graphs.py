@@ -43,10 +43,10 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         list_feature_multiview.append(feature_multiview)
 
 
-    # if args.add_text:
-    #     if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
-    #         raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
-    #     text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
+    if args.add_text:
+        if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
+            raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
+        text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
 
  
     if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
@@ -127,6 +127,10 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     spatial_node_target = []
     spatial_edge_attr = []
 
+    text_hetero_node_source = []
+    text_hetero_node_target = []
+    text_hetero_edge_attr = []
+
     num_view = len(list_feature_multiview)+1
     for i in range(num_frame):
         for j in range(num_frame):
@@ -187,11 +191,11 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                             hetero_edge_attr.append(-1)
 
 
-                        
-                    # if args.add_text:
-                    #     hetero_node_source.append(i)
-                    #     hetero_node_target.append(j)
-                    #     hetero_edge_attr.append(-1)
+                    # # # add edges between heterogenous nodes (text to  ego omnivore) in the same frame
+                    if args.add_text:
+                        text_hetero_node_source.append(i)
+                        text_hetero_node_target.append(j)
+                        text_hetero_edge_attr.append(-1)
 
                         
 
@@ -235,7 +239,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         if args.add_spatial:
             feature_multidepth = np.concatenate(list_feature_multidepth)
             node_feature = np.concatenate((node_feature, feature_multidepth))
-     
+
     
     graphs = HeteroData()
 
@@ -254,7 +258,11 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     ## addd edge types for multiview
     graphs['spatial', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_node_source, spatial_node_target], dtype=np.int32), dtype=torch.long)
     graphs['spatial', 'to', 'spatial'].edge_attr = torch.tensor(spatial_edge_attr, dtype=torch.float32)
-    
+
+
+    graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
+    graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([text_hetero_node_source, text_hetero_node_target], dtype=np.int32), dtype=torch.long)
+    graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(text_hetero_edge_attr, dtype=torch.float32)
 
     # labels for omnivore nodes 
     graphs['omnivore'].y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long)
@@ -375,7 +383,7 @@ if __name__ == "__main__":
     parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=1000)
     parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
     parser.add_argument('--add_multiview',   help='Whether to add multiview features', action="store_true")
-    # parser.add_argument('--add_text',   help='Whether to add text features', action="store_true")
+    parser.add_argument('--add_text',   help='Whether to add text features', action="store_true")
     parser.add_argument('--add_spatial',   help='Whether to add spatial features', action="store_true")
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)
     
@@ -452,8 +460,9 @@ if __name__ == "__main__":
                 multiview_data_files[matching_data_file].append(multiview_data)
 
 
-        # if args.add_text:
-        #     args.text_dir = os.path.join(args.root_data, f'annotations/{cfg["annotations_dataset"]}/{cfg["text_dataset"]}/')
+        if args.add_text:
+            args.text_dir = os.path.join(args.root_data, f'annotations/{cfg["annotations_dataset"]}/{cfg["text_dataset"]}/')
+
         multidepth_data_files = {}
         if args.add_spatial:
             args.spatial_dir = cfg['spatial_dataset']
