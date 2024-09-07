@@ -94,7 +94,7 @@ def evaluate_heterogeneous(cfg):
             preds_all.extend(preds)
             # labels_all.extend(y)
 
-            logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
+            # logger.info(f'[{i:04d}|{num_val_graphs:04d}] processed')
 
 
     # Compute the evaluation score

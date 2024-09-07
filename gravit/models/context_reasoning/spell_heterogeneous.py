@@ -56,6 +56,8 @@ class SPELL_HETEROGENEOUS(Module):
         
         self.layer011_omnivore = Linear(input_dim, channels[0]) 
          
+        print(f'Add text: {self.add_text}, Add spatial: {self.add_spatial}')
+
         # hetero gnn
         if self.add_spatial and not self.add_text:
             spatial_input_dim = cfg['spatial_input_dim']
@@ -64,10 +66,11 @@ class SPELL_HETEROGENEOUS(Module):
             edge_types = [ ('omnivore', 'to', 'omnivore'), ('spatial', 'to', 'spatial'), ('omnivore', 'to', 'spatial')] # 
 
         elif self.add_text and not self.add_spatial:
+            
             text_input_dim = cfg['text_input_dim']
             self.layer011_text = Linear(text_input_dim, channels[0])
             node_types = ['text', 'omnivore']
-            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('text', 'to', 'text')] 
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text') ] # , , ('text', 'to', 'text')
 
 
         elif self.add_text and self.add_spatial:

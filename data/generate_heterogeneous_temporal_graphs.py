@@ -117,19 +117,28 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     node_target = []
     edge_attr = []
 
-    # edges between omnivore and text
-    hetero_node_source = []
-    hetero_node_target = []
-    hetero_edge_attr = []
+    
 
     # edges between mode 2 (depth)
-    spatial_node_source = []
-    spatial_node_target = []
-    spatial_edge_attr = []
+    if args.add_spatial:
+        # edges between omnivore and text
+        spatial_hetero_node_source = []
+        spatial_hetero_node_target = []
+        spatial_hetero_edge_attr = []
 
-    text_hetero_node_source = []
-    text_hetero_node_target = []
-    text_hetero_edge_attr = []
+        spatial_node_source = []
+        spatial_node_target = []
+        spatial_edge_attr = []
+
+
+    if args.add_text:
+        text_hetero_node_source = []
+        text_hetero_node_target = []
+        text_hetero_edge_attr = []
+
+        text_node_source = []
+        text_node_target = []
+        text_edge_attr = []
 
     num_view = len(list_feature_multiview)+1
     for i in range(num_frame):
@@ -149,6 +158,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     spatial_node_source.append(i)
                     spatial_node_target.append(j)
                     spatial_edge_attr.append(np.sign(frame_diff))
+
+                # # # connect text nodes across frames
+                # if args.add_text:
+                #     text_node_source.append(i)
+                #     text_node_target.append(j)
+                #     text_edge_attr.append(np.sign(frame_diff))
 
                 
                 # add edges between the same view in different frames
@@ -172,12 +187,11 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
 
                     if args.add_spatial:
-                        
                         # # # add edges between heterogenous nodes (spatial to  corresponding omnivore) in the same frame
                         # ego spatial to ego omnivore
-                        hetero_node_source.append(i)
-                        hetero_node_target.append(j)
-                        hetero_edge_attr.append(-1)
+                        spatial_hetero_node_source.append(i)
+                        spatial_hetero_node_target.append(j)
+                        spatial_hetero_edge_attr.append(-1)
                         
                         for k in range(1, num_view):
                             # exo to ego edges for spatial nodes
@@ -185,13 +199,13 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                             spatial_node_target.append(j+num_frame*k)
                             spatial_edge_attr.append(-1)
 
-                            # multiview-spatial to omnivore corresponding view
-                            hetero_node_source.append(i+num_frame*k)
-                            hetero_node_target.append(j+num_frame*k)
-                            hetero_edge_attr.append(-1)
+                            # # multiview-spatial to omnivore corresponding view
+                            # spatial_hetero_node_source.append(i+num_frame*k)
+                            # spatial_hetero_node_target.append(j+num_frame*k)
+                            # spatial_hetero_edge_attr.append(-1)
 
 
-                    # # # add edges between heterogenous nodes (text to  ego omnivore) in the same frame
+                    # # # add edges between text to  ego omnivore in the same frame
                     if args.add_text:
                         text_hetero_node_source.append(i)
                         text_hetero_node_target.append(j)
@@ -250,19 +264,22 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     g = all_ids.index(take_name)
     graphs['omnivore'].g = torch.tensor([g], dtype=torch.long)
 
+    if args.add_spatial:
+        graphs['spatial'].x = torch.tensor(np.array(node_feature, dtype=np.float32), dtype=torch.float32)
+        graphs['omnivore', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_hetero_node_source, spatial_hetero_node_target], dtype=np.int32), dtype=torch.long)
+        graphs['omnivore', 'to', 'spatial'].edge_attr = torch.tensor(spatial_hetero_edge_attr, dtype=torch.float32)
 
-    graphs['spatial'].x = torch.tensor(np.array(node_feature, dtype=np.float32), dtype=torch.float32)
-    graphs['omnivore', 'to', 'spatial'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
-    graphs['omnivore', 'to', 'spatial'].edge_attr = torch.tensor(hetero_edge_attr, dtype=torch.float32)
+        ## addd edge types for multiview
+        graphs['spatial', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_node_source, spatial_node_target], dtype=np.int32), dtype=torch.long)
+        graphs['spatial', 'to', 'spatial'].edge_attr = torch.tensor(spatial_edge_attr, dtype=torch.float32)
 
-    ## addd edge types for multiview
-    graphs['spatial', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_node_source, spatial_node_target], dtype=np.int32), dtype=torch.long)
-    graphs['spatial', 'to', 'spatial'].edge_attr = torch.tensor(spatial_edge_attr, dtype=torch.float32)
+    if args.add_text:
+        graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
+        graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([text_hetero_node_source, text_hetero_node_target], dtype=np.int32), dtype=torch.long)
+        graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(text_hetero_edge_attr, dtype=torch.float32)
 
-
-    graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
-    graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([text_hetero_node_source, text_hetero_node_target], dtype=np.int32), dtype=torch.long)
-    graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(text_hetero_edge_attr, dtype=torch.float32)
+        # graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([text_node_source, text_node_target], dtype=np.int32), dtype=torch.long)
+        # graphs['text', 'to', 'text'].edge_attr = torch.tensor(text_edge_attr, dtype=torch.float32)
 
     # labels for omnivore nodes 
     graphs['omnivore'].y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long)
