@@ -79,7 +79,7 @@ class SPELL_HETEROGENEOUS(Module):
             self.layer011_text = Linear(text_input_dim, channels[0])
             self.layer011_spatial = Linear(spatial_input_dim, channels[0])
             node_types = ['text', 'spatial', 'omnivore']
-            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('omnivore', 'to', 'spatial'), ('spatial', 'to', 'spatial')]
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('omnivore', 'to', 'spatial') ] # ('spatial', 'to', 'spatial')
         
         else:
             node_types = ['omnivore']

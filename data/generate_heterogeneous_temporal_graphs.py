@@ -49,25 +49,31 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
 
  
-    if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
-        take_name = take_name.rsplit('_', 1)[0]
+ 
+
 
     # load spatial features
     if args.add_spatial:
+        if not os.path.exists(os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy')):
+            print(f'Spatial feature not found for {os.path.join(args.root_data, "features", args.spatial_dir, take_name + ".npy")}')
+            return
+
         spatial_feature = load_spatial_features(filepath=os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy'),
                                             verbose=False)    
 
         # print(list_multidepth_data_files)    
-        list_feature_multidepth = []
-        for multidepth_data_file in list_multidepth_data_files:
-            feature_multidepth = load_spatial_features(multidepth_data_file)
-            assert spatial_feature.shape == feature_multidepth.shape, f'feature.shape: {spatial_feature.shape}, feature_multidepth.shape: {feature_multidepth.shape}'
-            list_feature_multidepth.append(feature_multidepth)
+        # list_feature_multidepth = []
+        # for multidepth_data_file in list_multidepth_data_files:
+        #     feature_multidepth = load_spatial_features(multidepth_data_file)
+        #     assert spatial_feature.shape == feature_multidepth.shape, f'feature.shape: {spatial_feature.shape}, feature_multidepth.shape: {feature_multidepth.shape}'
+        #     list_feature_multidepth.append(feature_multidepth)
 
         node_feature = spatial_feature
     else:
         node_feature = [[]]
 
+    if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
+        take_name = take_name.rsplit('_', 1)[0]
   
     # feature = spatial_feature
         # create a random vector that is the same size as a single object feature
@@ -117,7 +123,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     node_target = []
     edge_attr = []
 
-    
 
     # edges between mode 2 (depth)
     if args.add_spatial:
@@ -126,9 +131,9 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         spatial_hetero_node_target = []
         spatial_hetero_edge_attr = []
 
-        spatial_node_source = []
-        spatial_node_target = []
-        spatial_edge_attr = []
+        # spatial_node_source = []
+        # spatial_node_target = []
+        # spatial_edge_attr = []
 
 
     if args.add_text:
@@ -136,9 +141,9 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         text_hetero_node_target = []
         text_hetero_edge_attr = []
 
-        text_node_source = []
-        text_node_target = []
-        text_edge_attr = []
+        # text_node_source = []
+        # text_node_target = []
+        # text_edge_attr = []
 
     num_view = len(list_feature_multiview)+1
     for i in range(num_frame):
@@ -154,10 +159,10 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                 edge_attr.append(np.sign(frame_diff))
 
                 # # connect ego spatial nodes across frames
-                if args.add_spatial:
-                    spatial_node_source.append(i)
-                    spatial_node_target.append(j)
-                    spatial_edge_attr.append(np.sign(frame_diff))
+                # if args.add_spatial:
+                #     spatial_node_source.append(i)
+                #     spatial_node_target.append(j)
+                #     spatial_edge_attr.append(np.sign(frame_diff))
 
                 # # # connect text nodes across frames
                 # if args.add_text:
@@ -172,11 +177,11 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     node_target.append(j+num_frame*k)
                     edge_attr.append(np.sign(frame_diff))
 
-                    # # connect multiview-spatial nodes across frames
-                    if args.add_spatial:
-                        spatial_node_source.append(i+num_frame*k)
-                        spatial_node_target.append(j+num_frame*k)
-                        spatial_edge_attr.append(np.sign(frame_diff))
+                    # # # connect multiview-spatial nodes across frames
+                    # if args.add_spatial:
+                    #     spatial_node_source.append(i+num_frame*k)
+                    #     spatial_node_target.append(j+num_frame*k)
+                    #     spatial_edge_attr.append(np.sign(frame_diff))
 
                 # add edges between exo views to ego view in the same frame
                 if frame_diff == 0:
@@ -193,11 +198,11 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                         spatial_hetero_node_target.append(j)
                         spatial_hetero_edge_attr.append(-1)
                         
-                        for k in range(1, num_view):
-                            # exo to ego edges for spatial nodes
-                            spatial_node_source.append(i)
-                            spatial_node_target.append(j+num_frame*k)
-                            spatial_edge_attr.append(-1)
+                        # for k in range(1, num_view):
+                        #     # exo to ego edges for spatial nodes
+                        #     spatial_node_source.append(i)
+                        #     spatial_node_target.append(j+num_frame*k)
+                        #     spatial_edge_attr.append(-1)
 
                             # # multiview-spatial to omnivore corresponding view
                             # spatial_hetero_node_source.append(i+num_frame*k)
@@ -250,9 +255,9 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         feature_multiview = np.concatenate(list_feature_multiview)
         feature = np.concatenate((np.array(feature, dtype=np.float32), feature_multiview))
         label = label*num_view
-        if args.add_spatial:
-            feature_multidepth = np.concatenate(list_feature_multidepth)
-            node_feature = np.concatenate((node_feature, feature_multidepth))
+        # if args.add_spatial:
+        #     feature_multidepth = np.concatenate(list_feature_multidepth)
+        #     node_feature = np.concatenate((node_feature, feature_multidepth))
 
     
     graphs = HeteroData()
@@ -269,9 +274,9 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         graphs['omnivore', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_hetero_node_source, spatial_hetero_node_target], dtype=np.int32), dtype=torch.long)
         graphs['omnivore', 'to', 'spatial'].edge_attr = torch.tensor(spatial_hetero_edge_attr, dtype=torch.float32)
 
-        ## addd edge types for multiview
-        graphs['spatial', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_node_source, spatial_node_target], dtype=np.int32), dtype=torch.long)
-        graphs['spatial', 'to', 'spatial'].edge_attr = torch.tensor(spatial_edge_attr, dtype=torch.float32)
+        # ## addd edge types for multiview
+        # graphs['spatial', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_node_source, spatial_node_target], dtype=np.int32), dtype=torch.long)
+        # graphs['spatial', 'to', 'spatial'].edge_attr = torch.tensor(spatial_edge_attr, dtype=torch.float32)
 
     if args.add_text:
         graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
