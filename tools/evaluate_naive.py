@@ -8,7 +8,7 @@ from gravit.utils.logger import get_logger
 from gravit.models import build_model
 from gravit.datasets import EgoExoOmnivoreDataset
 from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds, get_formatted_preds_egoexo_omnivore, get_formatted_preds_framewise
-from gravit.utils.eval_tool import get_eval_score, plot_predictions, error_analysis
+from gravit.utils.eval_tool import get_eval_score, get_eval_score_naive, plot_predictions, error_analysis
 
 
 def evaluate(cfg):
@@ -33,8 +33,8 @@ def evaluate(cfg):
     print(device)
     model = build_model(cfg, device)
 
-    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, features_dataset=cfg['dataset'], 
-                                                  annotations_dataset=cfg['annotations'], eval_mode=True, load_raw_labels=True), batch_size=cfg['batch_size'], 
+    val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], validation=True, features_dataset=cfg['features_dataset'], 
+                                                  annotations_dataset=cfg['annotations_dataset'], eval_mode=True, load_raw_labels=True), batch_size=cfg['batch_size'], 
                                                   shuffle=False, num_workers=128)
 
     num_val_graphs = len(val_loader)
@@ -68,8 +68,13 @@ def evaluate(cfg):
             logits = logits.squeeze(1)
 
             # Change the format of the model output
-            if 'egoexo-omnivore' in cfg['dataset']:
+            if 'egoexo' in cfg['dataset']:
                 preds = get_formatted_preds_framewise(cfg, logits, video_id, frame_num, data_dict)
+                
+                # preds is a list of tuples of size 3, get only the first 2 items in the tuple
+                # preds = [pred[:2] for pred in preds]
+                # print(preds[0])
+
               
             else:
                 # TODO: probably need to fix this
@@ -86,7 +91,7 @@ def evaluate(cfg):
     # Compute the evaluation score
     # error_analysis(cfg, preds_all)
     logger.info('Computing the evaluation score')
-    eval_score = get_eval_score(cfg, preds_all)
+    eval_score = get_eval_score_naive('/home/juro4948/gravit/GraVi-T/data/annotations', cfg, preds_all)
     
     
     logger.info(f'{cfg["eval_type"]} evaluation finished: {eval_score}')

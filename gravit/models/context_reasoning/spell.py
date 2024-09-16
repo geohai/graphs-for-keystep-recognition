@@ -9,36 +9,36 @@ import numpy as np
 # from mamba.models import MambaSeqEmbedding
 
 
-def graph_to_nn_batch(x, batch, max_seq_len=25):
-    batch_numbers = torch.unique(batch).sort()[0]
+# def graph_to_nn_batch(x, batch, max_seq_len=25):
+#     batch_numbers = torch.unique(batch).sort()[0]
 
-    batch_tensors = []
-    for batch_num in batch_numbers:
-        indices = torch.where(batch == batch_num)[0]
-        batch_data = torch.index_select(x, 0, indices)
-        padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
-        padded_data = padded_data[:max_seq_len, :]
-        padded_data = padded_data.unsqueeze(0).transpose(1, 2)
-        batch_tensors.append(padded_data)
+#     batch_tensors = []
+#     for batch_num in batch_numbers:
+#         indices = torch.where(batch == batch_num)[0]
+#         batch_data = torch.index_select(x, 0, indices)
+#         padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
+#         padded_data = padded_data[:max_seq_len, :]
+#         padded_data = padded_data.unsqueeze(0).transpose(1, 2)
+#         batch_tensors.append(padded_data)
 
-    return torch.cat(batch_tensors, dim=0)
+#     return torch.cat(batch_tensors, dim=0)
 
 
-def multiview_graph_to_nn_batch(x, batch_idxs, view_idxs, max_seq_len=25): 
-    batch_numbers = torch.unique(batch_idxs).sort()[0]
-    view_numbers = torch.unique(view_idxs).sort()[0]
+# def multiview_graph_to_nn_batch(x, batch_idxs, view_idxs, max_seq_len=25): 
+#     batch_numbers = torch.unique(batch_idxs).sort()[0]
+#     view_numbers = torch.unique(view_idxs).sort()[0]
 
-    batch_tensors = []
-    for batch_num in batch_numbers:
-        for view_num in view_numbers:
-            indices = torch.where((batch_idxs == batch_num) & (view_idxs == view_num))[0]
-            batch_data = torch.index_select(x, 0, indices)
-            padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
-            padded_data = padded_data[:max_seq_len, :]
-            padded_data = padded_data.unsqueeze(0).transpose(1, 2)
-            batch_tensors.append(padded_data)
+#     batch_tensors = []
+#     for batch_num in batch_numbers:
+#         for view_num in view_numbers:
+#             indices = torch.where((batch_idxs == batch_num) & (view_idxs == view_num))[0]
+#             batch_data = torch.index_select(x, 0, indices)
+#             padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
+#             padded_data = padded_data[:max_seq_len, :]
+#             padded_data = padded_data.unsqueeze(0).transpose(1, 2)
+#             batch_tensors.append(padded_data)
 
-    return torch.cat(batch_tensors, dim=0)
+#     return torch.cat(batch_tensors, dim=0)
 
 
 class DilatedResidualLayer(Module):
@@ -158,39 +158,39 @@ class SPELL(Module):
         # ################################################################################
         ## Mamba
 
-        # when there are multiple views in the graph
-        if view_idx is not None and torch.unique(view_idx).shape[0] > 1:
-            # print(f'x: {x.shape} | batch: {torch.unique(batch).shape}, {batch.shape} | view_idx: {torch.unique(view_idx).shape}')
+        # # when there are multiple views in the graph
+        # if view_idx is not None and torch.unique(view_idx).shape[0] > 1:
+        #     # print(f'x: {x.shape} | batch: {torch.unique(batch).shape}, {batch.shape} | view_idx: {torch.unique(view_idx).shape}')
             
 
-            ####### Uncomment to calculate subgraph average features #######
-            # # create new batch index for multiview using batch and view_idx
-            # batch_view = batch * torch.unique(view_idx).shape[0] + view_idx
-            # avg = self.average_subgraph(x, batch=batch_view.to(x.device))
-            # # sort avg by the batch_view indices
-            # avg = avg[torch.unique(batch_view).argsort()]
-            # # avg is in order of b0v0, b0v1, b0v2,
-            ################################################################
+        #     ####### Uncomment to calculate subgraph average features #######
+        #     # # create new batch index for multiview using batch and view_idx
+        #     # batch_view = batch * torch.unique(view_idx).shape[0] + view_idx
+        #     # avg = self.average_subgraph(x, batch=batch_view.to(x.device))
+        #     # # sort avg by the batch_view indices
+        #     # avg = avg[torch.unique(batch_view).argsort()]
+        #     # # avg is in order of b0v0, b0v1, b0v2,
+        #     ################################################################
 
 
-            # print(f'x: {x.shape} | batch: {torch.unique(batch).shape} | view_idx: {torch.unique(view_idx).shape}')
-            x = multiview_graph_to_nn_batch(x, batch, view_idx, max_seq_len=self.max_seq_len) # parse graph to tensor to input to mamba [num_views*batch_size, feature_dim, max_seq_len]
-            x = x.reshape(x.shape[0], x.shape[2], x.shape[1]) # rearrange to [num_views*batch_size, max_seq_len, feature_dim]
-            x = self.subgraph_agg(x) # run through mamba
-            edge_index, edge_attr = self.rebuild_edge_matrix(x, view_idx)  # reconstruct edge matrix based on the new segmentwise features, view_idx only needed to get num_views
+        #     # print(f'x: {x.shape} | batch: {torch.unique(batch).shape} | view_idx: {torch.unique(view_idx).shape}')
+        #     x = multiview_graph_to_nn_batch(x, batch, view_idx, max_seq_len=self.max_seq_len) # parse graph to tensor to input to mamba [num_views*batch_size, feature_dim, max_seq_len]
+        #     x = x.reshape(x.shape[0], x.shape[2], x.shape[1]) # rearrange to [num_views*batch_size, max_seq_len, feature_dim]
+        #     x = self.subgraph_agg(x) # run through mamba
+        #     edge_index, edge_attr = self.rebuild_edge_matrix(x, view_idx)  # reconstruct edge matrix based on the new segmentwise features, view_idx only needed to get num_views
         
-        # for single view
-        else:
+        # # for single view
+        # else:
 
-            ####### Uncomment to calculate subgraph average features #######
-            # # when there is a single view in the graph
-            # avg = self.average_subgraph(x, batch=batch)
-            ################################################################
+        #     ####### Uncomment to calculate subgraph average features #######
+        #     # # when there is a single view in the graph
+        #     # avg = self.average_subgraph(x, batch=batch)
+        #     ################################################################
 
-            x = graph_to_nn_batch(x, batch, max_seq_len=self.max_seq_len) # output: first dimension is batch size [batch_size, feature_dim, max_seq_len)]
-            x = x.reshape(x.shape[0], x.shape[2], x.shape[1])   # rearrange the dimensions to [batch_size, max_seq_len, feature_dim]
-            x = self.subgraph_agg(x)
-            edge_index, edge_attr = self.rebuild_edge_matrix(x, view_idx)  # reconstruct edge matrix based on the new segmentwise features
+        #     x = graph_to_nn_batch(x, batch, max_seq_len=self.max_seq_len) # output: first dimension is batch size [batch_size, feature_dim, max_seq_len)]
+        #     x = x.reshape(x.shape[0], x.shape[2], x.shape[1])   # rearrange the dimensions to [batch_size, max_seq_len, feature_dim]
+        #     x = self.subgraph_agg(x)
+        #     edge_index, edge_attr = self.rebuild_edge_matrix(x, view_idx)  # reconstruct edge matrix based on the new segmentwise features
 
         ####### Uncomment to calculate subgraph average features #######
         # # append the average subgraph to the feature vector
@@ -266,63 +266,63 @@ class SPELL(Module):
 
         return out
 
-    def rebuild_edge_matrix(self, x, view_idx=None):
-        if view_idx is not None and torch.unique(view_idx).shape[0] > 1:
-            return self.rebuild_edge_matrix_multiview(x, view_idx)
-        node_source = []
-        node_target = []
-        edge_attr = []
-        # print(f'x: {x.shape}')
-        # print(f'view_idx: {view_idx.shape}')
-        for i in range(x.shape[0]):
-            for j in range(x.shape[0]):
-                # Frame difference between the i-th and j-th nodes
-                frame_diff = i - j
+    # def rebuild_edge_matrix(self, x, view_idx=None):
+    #     if view_idx is not None and torch.unique(view_idx).shape[0] > 1:
+    #         return self.rebuild_edge_matrix_multiview(x, view_idx)
+    #     node_source = []
+    #     node_target = []
+    #     edge_attr = []
+    #     # print(f'x: {x.shape}')
+    #     # print(f'view_idx: {view_idx.shape}')
+    #     for i in range(x.shape[0]):
+    #         for j in range(x.shape[0]):
+    #             # Frame difference between the i-th and j-th nodes
+    #             frame_diff = i - j
 
-                # The edge ij connects the i-th node and j-th node
-                # Positive edge_attr indicates that the edge ij is backward (negative: forward)
-                if abs(frame_diff) <= 1: # tauf
-                    node_source.append(i)
-                    node_target.append(j)
-                    edge_attr.append(np.sign(frame_diff))
+    #             # The edge ij connects the i-th node and j-th node
+    #             # Positive edge_attr indicates that the edge ij is backward (negative: forward)
+    #             if abs(frame_diff) <= 1: # tauf
+    #                 node_source.append(i)
+    #                 node_target.append(j)
+    #                 edge_attr.append(np.sign(frame_diff))
 
-        edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long).to(x.device)
-        edge_attr = torch.tensor(edge_attr, dtype=torch.float32).to(x.device)
+    #     edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long).to(x.device)
+    #     edge_attr = torch.tensor(edge_attr, dtype=torch.float32).to(x.device)
 
-        return edge_index, edge_attr
+    #     return edge_index, edge_attr
     
-    def rebuild_edge_matrix_multiview(self, x, view_idx):              
-        num_view = torch.unique(view_idx).shape[0]
-        num_frame = x.shape[0] // num_view  # num frames is the number of batches
-        node_source = []
-        node_target = []
-        edge_attr = []
+    # def rebuild_edge_matrix_multiview(self, x, view_idx):              
+    #     num_view = torch.unique(view_idx).shape[0]
+    #     num_frame = x.shape[0] // num_view  # num frames is the number of batches
+    #     node_source = []
+    #     node_target = []
+    #     edge_attr = []
 
-        for i in range(num_frame):
-            for j in range(num_frame):
-                # Frame difference between the i-th and j-th nodes
-                frame_diff = i - j
+    #     for i in range(num_frame):
+    #         for j in range(num_frame):
+    #             # Frame difference between the i-th and j-th nodes
+    #             frame_diff = i - j
 
-                # The edge ij connects the i-th node and j-th node
-                # Positive edge_attr indicates that the edge ij is backward (negative: forward)
-                if abs(frame_diff) <= 1:
-                    node_source.append(i)
-                    node_target.append(j)
-                    edge_attr.append(np.sign(frame_diff))
+    #             # The edge ij connects the i-th node and j-th node
+    #             # Positive edge_attr indicates that the edge ij is backward (negative: forward)
+    #             if abs(frame_diff) <= 1:
+    #                 node_source.append(i)
+    #                 node_target.append(j)
+    #                 edge_attr.append(np.sign(frame_diff))
 
-                    for k in range(1, num_view):
-                        node_source.append(i+num_frame*k)
-                        node_target.append(j+num_frame*k)
-                        edge_attr.append(np.sign(frame_diff))
+    #                 for k in range(1, num_view):
+    #                     node_source.append(i+num_frame*k)
+    #                     node_target.append(j+num_frame*k)
+    #                     edge_attr.append(np.sign(frame_diff))
 
-                    if frame_diff == 0:
-                        for k in range(1, num_view):
-                            node_source.append(i)
-                            node_target.append(j+num_frame*k)
-                            edge_attr.append(1)
+    #                 if frame_diff == 0:
+    #                     for k in range(1, num_view):
+    #                         node_source.append(i)
+    #                         node_target.append(j+num_frame*k)
+    #                         edge_attr.append(1)
 
-        edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long).to(x.device)
-        edge_attr = torch.tensor(edge_attr, dtype=torch.float32).to(x.device)
+    #     edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int64), dtype=torch.long).to(x.device)
+    #     edge_attr = torch.tensor(edge_attr, dtype=torch.float32).to(x.device)
 
-        return edge_index, edge_attr
+    #     return edge_index, edge_attr
         

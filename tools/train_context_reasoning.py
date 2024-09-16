@@ -62,7 +62,6 @@ def train(cfg):
     print(f'Batch size:', cfg['batch_size'])
 
 
-
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
         print(f'------- Epoch: {epoch} --------')
@@ -70,7 +69,6 @@ def train(cfg):
 
         # Train for a single epoch
         loss_sum = 0
-        accumulated_gradients = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
         for data in train_loader:
             optimizer.zero_grad()
             x = data.x.to(device)
@@ -95,28 +93,14 @@ def train(cfg):
             # print(f'X shape: {x.shape}, Y shape: {data.y.shape}')
             # if batch is not None:
             #     print(f'Batch shape: {batch.shape}')
-            if x.shape[0] == 1:
-                continue
-
-            print(f'x shape: {x.shape}')
+            # if x.shape[0] == 1:
+            #     continue
 
             logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
             
             loss = loss_func(logits, y)
             loss.backward()
             loss_sum += loss.item()
-
-            # Accumulate gradients
-            for name, param in model.named_parameters():
-                if param.grad is not None:
-                    accumulated_gradients[name] += param.grad
-              
-            # Perform optimization step every accumulation_steps
-            if (epoch + 1) % accumulation_steps == 0:
-                for name, param in model.named_parameters():
-                    param.grad = accumulated_gradients[name] / accumulation_steps
-                optimizer.step()
-                accumulated_gradients = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
 
         # Adjust the learning rate
         scheduler.step()

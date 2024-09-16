@@ -36,7 +36,7 @@ def evaluate(cfg):
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     if cfg['split'] is not None:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
-        path_result = os.path.join(path_result, f'split{cfg["split"]}')
+    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
 
     # Prepare the logger
     logger = get_logger(path_result, file_name='eval')

@@ -78,7 +78,6 @@ def train(cfg):
             logits = logits.squeeze(1)
                 
             # print(logits.dtype, y.dtype)
-            # print(logits.shape, y.shape)
             loss = loss_func(logits, y)
             # print(loss)
             loss.backward()

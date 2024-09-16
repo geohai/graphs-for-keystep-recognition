@@ -71,9 +71,20 @@ class EgoExoOmnivoreDataset(Dataset):
             video_id = video_id[0:-2] 
 
         # Load the features and labels
-        feature = load_and_fuse_modalities(data_file, 'concat', dataset=self.dataset, sample_rate=self.sample_rate, is_multiview=self.is_multiview)
-        label = load_labels(video_id=video_id, actions=self.actions, root_data=self.root_data, annotation_dataset=self.annotations, 
-                            sample_rate=self.sample_rate, feature=feature, load_raw=self.load_raw_labels)
+        feature = load_features(data_file)
+        take_name = os.path.splitext(os.path.basename(data_file))[0]
+        take_name = take_name.rsplit('_', 1)[0]
+        actions = self.actions
+        
+        label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data='./data', annotation_dataset='egoexo-segmentwise') 
+        
+        if len(feature) != len(label):
+            print(take_name)
+            print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
+            raise ValueError('Length of feature and label does not match')
+        # feature = load_and_fuse_modalities(data_file, 'concat', dataset=self.dataset, sample_rate=self.sample_rate, is_multiview=self.is_multiview)
+        # label = load_labels(video_id=video_id, actions=self.actions, root_data=self.root_data, annotation_dataset=self.annotations, 
+                            # sample_rate=self.sample_rate, feature=feature, load_raw=self.load_raw_labels)
    
         # now get the specific frame
         feature = feature[frame_num]
@@ -99,7 +110,7 @@ class EgoExoOmnivoreDataset(Dataset):
     def __load_action_classes_mapping__(self):
         # Build a mapping from action classes to action ids
         actions = {}
-        with open(os.path.join(self.root_data, f'annotations/{self.dataset}/mapping.txt')) as f:
+        with open(os.path.join(self.root_data, f'annotations/egoexo-segmentwise/mapping.txt')) as f:
             for line in f:
                 aid, cls = line.strip().split(' ')
                 actions[cls] = int(aid)
