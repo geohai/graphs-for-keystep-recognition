@@ -1,8 +1,8 @@
 exp_name: gravit-segmentwise-multiview-heterogeneous 
 model_name: SPELL_HETEROGENEOUS # SimpleMLP
-# graph_name: segmentwise-hetero-multiview   # name of saved dir in data/graphs
-graph_name: segmentwise-hetero-ego
-graph_name_eval: segmentwise-hetero-ego # when the training data is multiview, the eval data has to be single view
+graph_name: multiview   # name of saved dir in data/graphs
+# graph_name: ego
+graph_name_eval: ego # when the training data is multiview, the eval data has to be single view
 features_dataset: omnivore-segmentwise-ego
 annotations_dataset: egoexo-segmentwise
 text_dataset: detic-object-list-anchors_hands_sorted_features
