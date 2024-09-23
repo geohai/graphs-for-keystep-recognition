@@ -9,7 +9,7 @@ graph_name_eval: ego # to evaluate multiview graph on egocentric graph
 
 features_dataset: omnivore-segmentwise-ego
 annotations_dataset: egoexo-segmentwise
-text_dataset: detic-object-list-anchors_hands_sorted_features  #videorecap-clip_features #clip-videorecap-feats #vrecap-segment-keystep_features #clip-aad-feats #clip-keystep-description #
+# text_dataset: detic-object-list-anchors_hands_sorted_features  #videorecap-clip_features #clip-videorecap-feats #vrecap-segment-keystep_features #clip-aad-feats #clip-keystep-description #
 
 
 #### other params ####

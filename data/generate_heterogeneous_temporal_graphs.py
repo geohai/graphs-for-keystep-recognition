@@ -201,8 +201,7 @@ if __name__ == "__main__":
     # Hyperparameters for the graph generation
     parser.add_argument('--tauf',          type=int,   help='Maximum frame difference between neighboring nodes', required=False)
     parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=1000)
-    parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
-    # parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
+    parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) 
     parser.add_argument('--add_multiview',   help='Whether to add multiview features', action="store_true")
     parser.add_argument('--add_text',   help='Whether to add text features', action="store_true")
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)

@@ -38,7 +38,7 @@ def evaluate_heterogeneous(cfg):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     # model = build_model(cfg, device)
-    model = SPELL_HETEROGENEOUS(cfg, add_text=True).to(device)
+    model = SPELL_HETEROGENEOUS(cfg).to(device)
 
 
     print(f'Loading the data from {path_graphs}')

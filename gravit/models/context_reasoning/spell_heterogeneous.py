@@ -39,9 +39,9 @@ class Refinement(Module):
 
 
 class SPELL_HETEROGENEOUS(Module):
-    def __init__(self, cfg, add_text=True):
+    def __init__(self, cfg):
         super(SPELL_HETEROGENEOUS, self).__init__()
-        self.add_text = add_text
+        self.add_text = cfg['add_text']
         self.use_spf = cfg['use_spf'] # whether to use the spatial features
         self.num_modality = cfg['num_modality']
         if self.use_spf:

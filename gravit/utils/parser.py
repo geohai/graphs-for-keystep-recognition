@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument('--graph_name',    type=str,   help='Name of the graphs')
     parser.add_argument('--loss_name',     type=str,   help='Name of the loss function')
     parser.add_argument('--eval_type',     type=str,   help='Type of the evaluation')
+    parser.add_argument('--add_text',      help='Whether to add text features', action="store_true")
 
     # Other hyper-parameters
     parser.add_argument('--use_spf',       type=bool,  help='Whether to use the spatial features')
