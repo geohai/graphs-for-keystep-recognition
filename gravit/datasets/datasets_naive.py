@@ -76,7 +76,7 @@ class EgoExoOmnivoreDataset(Dataset):
         take_name = take_name.rsplit('_', 1)[0]
         actions = self.actions
         
-        label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data='./data', annotation_dataset='egoexo-segmentwise') 
+        label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data='./data', annotation_dataset=self.annotations) 
         
         if len(feature) != len(label):
             print(take_name)
@@ -110,7 +110,7 @@ class EgoExoOmnivoreDataset(Dataset):
     def __load_action_classes_mapping__(self):
         # Build a mapping from action classes to action ids
         actions = {}
-        with open(os.path.join(self.root_data, f'annotations/egoexo-segmentwise/mapping.txt')) as f:
+        with open(os.path.join(self.root_data, f'annotations/{self.annotations}/mapping.txt')) as f:
             for line in f:
                 aid, cls = line.strip().split(' ')
                 actions[cls] = int(aid)

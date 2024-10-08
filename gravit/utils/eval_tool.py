@@ -581,9 +581,10 @@ def get_eval_score(cfg, preds):
 
 
           if len(label) != len(pred):
-            print(f'len(pred): {len(pred)} | len(label): {len(label)}')
-            print(f'Length of pred and label do not match for {video_id}')
-            label = label[:len(pred)]
+            raise ValueError(f'Length of pred and label do not match for {video_id}: len(pred): {len(pred)} | len(label): {len(label)}')
+            # print(f'Length of pred and label do not match for {video_id}: len(pred): {len(pred)} | len(label): {len(label)}')
+            # label = label[:len(pred)]
+            # continue
             
           # write results of each video to csv: pred vs true labels
           path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"
@@ -614,51 +615,56 @@ def get_eval_score(cfg, preds):
         print(f'Original eval: {str_score}')
 
 
-        ################## now evaluate with removing classes##################
-        # load list of classes to remove
-        with open('classes_to_remove.txt', 'r') as f:
-          classes_to_remove = f.readlines()
-        classes_to_remove = [c.strip() for c in classes_to_remove]
+        # ################## now evaluate with removing classes##################
+        # # load list of classes to remove
+        # with open('classes_to_remove.txt', 'r') as f:
+        #   classes_to_remove = f.readlines()
+        # classes_to_remove = [c.strip() for c in classes_to_remove]
 
-        for (video_id, pred) in preds:
-          # Get a list of ground-truth action labels
-          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-            label = [line.strip() for line in f]
-            # print(f'Loaded path: {path_annts}/{cfg["dataset"]}/groundTruth/{video_id}.txt')
+        # for (video_id, pred) in preds:
+        #   # Get a list of ground-truth action labels
+        #   with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+        #     label = [line.strip() for line in f]
+        #     # print(f'Loaded path: {path_annts}/{cfg["dataset"]}/groundTruth/{video_id}.txt')
+        #   if len(label) != len(pred):
+        #     print(f'len(pred): {len(pred)} | len(label): {len(label)}')
+        #     print(f'Length of pred and label do not match for {video_id}')
+            
+        #   print(f'Video id: {video_id} | Label length: {len(label)} | Pred length: {len(pred)}')
 
-          # write results of each video to csv: pred vs true labels
-          path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"
-          pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(path, index=False)
-          total += len(label)
+        #   # write results of each video to csv: pred vs true labels
+        #   path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"
+        #   pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(path, index=False)
+        #   total += len(label)
 
-          for i, lb in enumerate(label):
-              if pred[i] == lb:
-                if lb not in classes_to_remove:
-                  correct += 1
+        #   for i, lb in enumerate(label):
+        #       if pred[i] == lb:
+        #         if lb not in classes_to_remove:
+        #           correct += 1
 
-          # remove classes
-          pred = [p for i, p in enumerate(pred) if label[i] not in classes_to_remove]
-          # remove from labels if corresponding pred is removed
-          label = [l for l, p in zip(label, pred) if p not in classes_to_remove]
+        #   # remove classes
+        #   pred = [p for i, p in enumerate(pred) if label[i] not in classes_to_remove]
+        #   # remove from labels if corresponding pred is removed
+        #   label = [l for l, p in zip(label, pred) if p not in classes_to_remove]
 
-          for i, th in enumerate(threshold):
-              tp_, fp_, fn_ = compare_segmentation(pred, label, th)
-              tp[i] += tp_
-              fp[i] += fp_
-              fn[i] += fn_
+        #   for i, th in enumerate(threshold):
+        #       tp_, fp_, fn_ = compare_segmentation(pred, label, th)
+        #       tp[i] += tp_
+        #       fp[i] += fp_
+        #       fn[i] += fn_
 
 
-        acc = correct/total
-        str_score = f'(Acc) {acc*100:.2f}%'
-        for i, th in enumerate(threshold):
-            pre = tp[i] / (tp[i]+fp[i])
-            rec = tp[i] / (tp[i]+fn[i])
-            if pre+rec == 0:
-              f1 = 0
-            else:
-              f1 = np.nan_to_num(2*pre*rec / (pre+rec))
-            str_score += f', (F1@{th}) {f1*100:.2f}%'
-        print(f'Removed tail-classes eval: {str_score}')
+        # acc = correct/total
+        # str_score = f'(Acc) {acc*100:.2f}%'
+        # for i, th in enumerate(threshold):
+        #     pre = tp[i] / (tp[i]+fp[i])
+        #     rec = tp[i] / (tp[i]+fn[i])
+        #     if pre+rec == 0:
+        #       f1 = 0
+        #     else:
+        #       f1 = np.nan_to_num(2*pre*rec / (pre+rec))
+        #     str_score += f', (F1@{th}) {f1*100:.2f}%'
+        # print(f'Removed tail-classes eval: {str_score}')
 
         ####################################################################
 

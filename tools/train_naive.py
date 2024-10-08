@@ -88,11 +88,11 @@ def train(cfg):
         scheduler.step()
 
         loss_train = loss_sum / len(train_loader)
-        print(loss_train)
+        # print(loss_train)
 
         # Get the validation loss
         loss_val = val(val_loader, cfg['use_spf'], model, device, loss_func_val)
-        print(loss_val)
+        # print(loss_val)
 
         # Save the best-performing checkpoint
         if loss_val < min_loss_val:
