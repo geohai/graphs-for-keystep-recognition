@@ -47,7 +47,7 @@ def train(cfg):
     model = build_model(cfg, device)
     model.to(device)
 
-
+    print(f'Loading the data from {path_graphs}')
     train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
     val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
@@ -77,6 +77,9 @@ def train(cfg):
             data = data.to(device)
 
             y = data.y_dict['omnivore'].to(device)
+            if len(data.x_dict['omnivore']) == 1:
+                # print('Skipping -> data.x_dict[omnivore]:', data.x_dict['omnivore'])
+                continue
 
             if cfg['use_spf']:
                 c = data.c.to(device)

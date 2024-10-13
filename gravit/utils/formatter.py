@@ -10,8 +10,8 @@ def get_formatting_data_dict(cfg):
     """
 
     root_data = cfg['root_data']
-    if 'annotations_dataset' not in cfg:
-        cfg['annotations_dataset'] = cfg['dataset']
+    # if 'annotations_dataset' not in cfg:
+    #     cfg['annotations_dataset'] = cfg['dataset']
     dataset = cfg['annotations_dataset']
     data_dict = {}
 

@@ -1,11 +1,16 @@
 exp_name: gravit-segmentwise-multiview-heterogeneous 
-model_name: SPELL_HETEROGENEOUS # SimpleMLP
-graph_name: segmentwise-hetero-multiview   # name of saved dir in data/graphs
-# graph_name: segmentwise-hetero-ego
-graph_name_eval: segmentwise-hetero-ego # when the training data is multiview, the eval data has to be single view
+model_name: SPELL_HETEROGENEOUS 
+# graph_name: multiview # to create multiview graph
+
+#### When the training data is multiview, the eval data has to be single view ####
+graph_name: ego # run once to create ego-centric graph (needed to evaluate multi-view graph)
+graph_name_eval: ego # to evaluate multiview graph on egocentric graph
+####
+
 features_dataset: omnivore-segmentwise-ego
-annotations_dataset: egoexo-segmentwise
-# text_dataset: detic-object-list-anchors_hands_sorted_features
+annotations_dataset: egoexo-segmentwise-all-categories
+# text_dataset: detic-object-list-anchors_hands_sorted_features  #videorecap-clip_features #clip-videorecap-feats #vrecap-segment-keystep_features #clip-aad-feats #clip-keystep-description #
+
 spatial_dataset: depthmap #composite_40 #features_5objects
 
 

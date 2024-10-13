@@ -41,10 +41,11 @@ def evaluate_heterogeneous(cfg):
     model = SPELL_HETEROGENEOUS(cfg).to(device)
 
 
-    print(f'Loading the data from {path_graphs}')
+    print(f'Loading the data from {os.path.join(path_graphs, "val")}')
     val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
     num_val_graphs = len(val_loader)
+    print(f'Number of validation graphs: {num_val_graphs}')
 
     # Load the trained model
     logger.info('Loading the trained model')

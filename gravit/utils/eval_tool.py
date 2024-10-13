@@ -552,9 +552,10 @@ def get_eval_score(cfg, preds):
 
 
           if len(label) != len(pred):
-            print(f'len(pred): {len(pred)} | len(label): {len(label)}')
-            print(f'Length of pred and label do not match for {video_id}')
-            label = label[:len(pred)]
+            raise ValueError(f'Length of pred and label do not match for {video_id}: len(pred): {len(pred)} | len(label): {len(label)}')
+            # print(f'Length of pred and label do not match for {video_id}: len(pred): {len(pred)} | len(label): {len(label)}')
+            # label = label[:len(pred)]
+            # continue
             
           # write results of each video to csv: pred vs true labels
           path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"

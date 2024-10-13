@@ -2,45 +2,47 @@ import os
 import glob
 import numpy as np
 import argparse
-from gravit.utils.data_loader import load_and_fuse_modalities, load_labels, crop_to_start_and_end, get_segments_and_batch_idxs
-from gravit.utils.parser import get_args, get_cfg
 import sys
 sys.path.append('/home/juro4948/gravit/data/egoexo4d')
+sys.path.append('/home/juro4948/segment_utils')
+
 from preprocess_utils import *
+from gravit.utils.data_loader import load_labels, get_segment_labels_by_batch_idxs, load_batch_indices #get_segments_and_batch_idxs
+from gravit.utils.parser import get_args, get_cfg
+from frame_to_segment import load_annotations, get_frames_for_segment, get_num_segments
+
 """
 Script to convert framewise features and labels to segmentwise features and labels.
 """
 
 
 
-def remove_action_indices(labels, features):    
-    # Find the indices of 'action_start' and 'action_end' in labels
-    start_indices = [i for i, label in enumerate(labels) if label == actions['action_start']]
-    end_indices = [i for i, label in enumerate(labels) if label == actions['action_end']]
-    
-    # Remove the corresponding indices from labels and features
-    labels = [label for i, label in enumerate(labels) if i not in start_indices and i not in end_indices]
-    features = [feature for i, feature in enumerate(features) if i not in start_indices and i not in end_indices]
-    
-    return labels, np.array(features)
-
-
 if __name__ == "__main__":
     root_data = './data'
 
-    # Load non-segmented features and labels
-    features = 'omnivore-trimmed-ego' #'egoexo-brp-level4' #'omnivore-ego' # name of the directory in data/features/ that are framewise
-    output_features_dir = 'omnivore-segmentwise-ego' # name of the output directory in data/features/
-    features_exo = 'omnivore-trimmed-ego-exo' 
-    output_features_dir_exo = 'omnivore-segmentwise-ego-exo'
-    save_features = True
+    load_annotations()
 
-    dataset =  'egoexo-regular' #  name of corresponding annotation dataset in data/annotations/
-    output_annotations_dir = 'egoexo-segmentwise' # name of the output directory in data/annotations/
+
+    # Load non-segmented features and labels
+    # features = 'omnivore-trimmed-ego' #'egoexo-brp-level4' #'omnivore-ego' # name of the directory in data/features/ that are framewise
+    # output_features_dir = 'omnivore-segmentwise-ego' # name of the output directory in data/features/
+    # egocentric = True
+    
+    features = 'omnivore-trimmed-ego-exo'  #-exo
+    output_features_dir = 'omnivore-segmentwise-ego-exo' #-exo
+    egocentric = False
+
+    save_features = True
+    remove_long_tailed_segments = True
+
+ 
+    dataset =  'egoexo-regular-all-categories' #'egoexo-regular' #  name of corresponding annotation dataset in data/annotations/
+    output_annotations_dir = 'egoexo-segmentwise-all-categories' # name of the output directory in data/annotations/
     save_labels = False
     annotation_type =  'groundTruth' #'descriptions' #
 
-    crop_start_end = False
+    batch_idx_path = f"/local/juro4948/data/egoexo4d/gravit_data/data_new/annotations/{dataset}/batch_idx/"
+
 
     ##########################################
         
@@ -109,20 +111,53 @@ if __name__ == "__main__":
             
             # load the labels
             if video_id not in all_ids:
-                raise ValueError(f'Could not find {video_id} in annotations file"')
+                video_id_label = '_'.join(video_id.split('_')[:-1])
+                if video_id_label not in all_ids:
+                    raise ValueError(f'Could not find {video_id_label} in annotations file"')
                 # print(f'Could not find {video_id} in splits file. Skipping..."')
 
-            label = load_labels(video_id=video_id, actions=actions, root_data=root_data, annotation_dataset=dataset,
-                            sample_rate=1, load_descriptions=load_descriptions, verbose=1)  
+            label = load_labels(video_id=video_id_label, actions=actions, root_data=root_data, annotation_dataset=dataset,
+                             load_descriptions=load_descriptions)  
       
             assert len(label) == omnivore_data.shape[0], f'Feature-Label Length mismatch for {data_file}'
 
-            if 'fair_cooking_05_2' in video_id:
-                print(f'Video ID: {video_id} | Label Length: {len(label)} | Feature Shape: {omnivore_data.shape}')
+            # if 'fair_cooking_05_2' in video_id:
+            #     print(f'Video ID: {video_id} | Label Length: {len(label)} | Feature Shape: {omnivore_data.shape}')
 
-                
+            # print(f'{video_id}')
             # Aggregate frame labels to segment labels by taking the mode
-            label, batch_idx_designation = get_segments_and_batch_idxs(label)
+            # load batch idxs 
+            
+            num_segments = get_num_segments(video_id_label)
+
+            batch_idx_designation = load_batch_indices(batch_idx_path, video_id_label)
+            labels = get_segment_labels_by_batch_idxs(label, batch_idx_designation)
+
+            # check that lengths align
+            assert len(np.unique(batch_idx_designation)) == num_segments, f'Batch Index Length mismatch for {data_file}'
+            assert len(labels) == num_segments, f'Label Length mismatch for {data_file}'
+            print(f'Batch Index Length: {len(np.unique(batch_idx_designation))} | Num Segments: {num_segments} | Label Length: {len(labels)}')
+
+
+            label = []
+            for segment in labels:
+                # append mode of the segment
+                label.append(np.argmax(np.bincount(segment)))
+
+
+            # label, batch_idx_designation = get_segments_and_batch_idxs(label)
+            
+            # batchwise_averages = []
+            # for segment_idx in range(num_segments):
+            #     start_frame, end_frame = get_frames_for_segment(video_name, segment_idx)
+            #     # take dimension-wise average
+            #     # TODO
+            #     segment_data = omnivore_data[start_frame:end_frame]
+            #     batchwise_averages.append(segment_data)
+            # batchwise_averages = np.array(batchwise_averages)
+
+            
+
             assert len(batch_idx_designation) == omnivore_data.shape[0], f'BatchIndex-Omnivore Feature Length mismatch for {data_file}'
 
             batchwise_averages = []
@@ -136,30 +171,59 @@ if __name__ == "__main__":
                 print(f'Video ID: {video_id} | Label Length: {len(label)} | Feature Shape: {batchwise_averages.shape}')
 
 
+            assert batchwise_averages.shape[0] == num_segments, f'Number of segments and features do not match for {video_id}: {num_segments} vs {batchwise_averages.shape[0]}'
+
+
+            if remove_long_tailed_segments:
+                with open('classes_to_remove.txt', 'r') as f:
+                    classes_to_remove = f.read().splitlines()
+                # filter out the long-tailed classes
+                batchwise_averages = batchwise_averages[~np.isin(label, classes_to_remove)]
+                label = [l for l in label if l not in classes_to_remove]
+                num_segments = len(label)
+
+
+
+
             # save the segment features
             if save_features:
                 path = os.path.join(root_data, f'features/{output_features_dir}/{split}')
                 os.makedirs(os.path.join(path, 'train'), exist_ok=True)
                 os.makedirs(os.path.join(root_data, f'features/{output_features_dir}/{split}/val'), exist_ok=True)
 
-                if video_id_label in train_ids:
-                    np.save(os.path.join(path, 'train', f'{video_id}.npy'), batchwise_averages)
+                if not egocentric:
+                    if video_id_label in train_ids:
+                        np.save(os.path.join(path, 'train', f'{video_id}.npy'), batchwise_averages)
+                        print(f'Saving {video_id} to {os.path.join(path, "train", f"{video_id}.npy")}')
+                    else:
+                        np.save(os.path.join(path, 'val', f'{video_id}.npy'), batchwise_averages)
+                        print(f'Saving {video_id} to {os.path.join(path, "val", f"{video_id}.npy")}')
+
                 else:
-                    np.save(os.path.join(path, 'val', f'{video_id}.npy'), batchwise_averages)
+                    if video_id_label in train_ids:
+                        np.save(os.path.join(path, 'train', f'{video_id_label}_0.npy'), batchwise_averages)
+                        print(f'Saving {video_id} to {os.path.join(path, "train", f"{video_id_label}.npy")}')
+                    else:
+                        np.save(os.path.join(path, 'val', f'{video_id_label}_0.npy'), batchwise_averages)
+                        print(f'Saving {video_id} to {os.path.join(path, "val", f"{video_id_label}.npy")}')
 
 
             # save the segment labels
             if save_labels:
                 save_folder = os.path.join(output_dir_path, annotation_type)
                 os.makedirs(os.path.join(save_folder), exist_ok=True)
-                if os.path.exists(os.path.join(save_folder, f'{video_id_label}.txt')):
-                    continue
-                else:
-                    with open(os.path.join(save_folder, f'{video_id_label}.txt'), 'w') as f:
-                        for l in label:
-                            if annotation_type == 'groundTruth':
-                                l = reverse[l]
-                            f.write(f'{l}\n')
+                # if os.path.exists(os.path.join(save_folder, f'{video_id_label}.txt')):
+                #     # continue
+                #     pass
+                # # else:
+                # print(reverse)
+                with open(os.path.join(save_folder, f'{video_id_label}.txt'), 'w') as f:
+                    for l in label:
+                        if annotation_type == 'groundTruth':
+                            l = reverse[l]
+                        f.write(f'{l}\n')
+
+                # print(f'Saving {video_id} to {os.path.join(save_folder, f"{video_id_label}.txt")}')
 
 
 
