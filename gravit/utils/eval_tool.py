@@ -577,7 +577,6 @@ def get_eval_score(cfg, preds):
           # Get a list of ground-truth action labels
           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
             label = [line.strip() for line in f]
-            print(f'Loaded path: {path_annts}/{cfg["dataset"]}/groundTruth/{video_id}.txt')
 
 
           if len(label) != len(pred):

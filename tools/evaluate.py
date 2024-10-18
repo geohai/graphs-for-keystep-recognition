@@ -26,16 +26,12 @@ def evaluate(cfg):
     # name of saved graphs with just ego view (not exo)
     if 'graph_name_eval' in cfg:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name_eval"]}')
-        # print(f'path_graphs: {path_graphs}')
+        print(f'path_graphs: {path_graphs}')
     else:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
         # print(f'path_graphs: {path_graphs}')
 
-
-    # path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
-    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
-    if cfg['split'] is not None:
-        path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
+    path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
 
     # Prepare the logger
@@ -53,17 +49,8 @@ def evaluate(cfg):
    
     num_val_graphs = len(val_loader)
 
-    # Init
-    #x_dummy = torch.tensor(np.array(np.random.rand(10, 1024), dtype=np.float32), dtype=torch.float32).to(device)
-    #node_source_dummy = np.random.randint(10, size=5)
-    #node_target_dummy = np.random.randint(10, size=5)
-    #edge_index_dummy = torch.tensor(np.array([node_source_dummy, node_target_dummy], dtype=np.int64), dtype=torch.long).to(device)
-    #signs = np.sign(node_source_dummy - node_target_dummy)
-    #edge_attr_dummy = torch.tensor(signs, dtype=torch.float32).to(device)
-    #model(x_dummy, edge_index_dummy, edge_attr_dummy, None)
-
     # Load the trained model
-    logger.info('Loading the trained model')
+    logger.info(f'Loading the trained model from {path_result}')
     state_dict = torch.load(os.path.join(path_result, 'ckpt_best.pt'), map_location=torch.device('cpu'))
     model.load_state_dict(state_dict)
     model.eval()
@@ -86,17 +73,17 @@ def evaluate(cfg):
             y = data.y.to(device) 
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
-            c = None
-            if 'batch_idxs' in data.keys():
-                batch = data.batch_idxs
-                batch = batch.to(device)
-            else:
-                batch = None
+            c, batch = None, None
+            # if 'batch_idxs' in data.keys():
+            #     batch = data.batch_idxs
+            #     batch = batch.to(device)
+            # else:
+            #     batch = None
             
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            logits = model(x, edge_index, edge_attr, c, batch)
+            logits = model(x, edge_index, edge_attr, c, batch=batch)
 
             # Change the format of the model output
             preds = get_formatted_preds(cfg, logits, g, data_dict)
@@ -143,7 +130,6 @@ if __name__ == "__main__":
     args.cfg = os.path.join(path_result, 'cfg.yaml')
     print(args.cfg)
     cfg = get_cfg(args)
-    evaluate(cfg)
 
     results = []
     if args.all_splits:

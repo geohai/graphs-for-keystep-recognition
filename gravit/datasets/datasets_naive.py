@@ -7,25 +7,21 @@ import numpy as np
 
 # Simple dataset for non-graph structured data
 class EgoExoOmnivoreDataset(Dataset):
-    def __init__(self, split, features_dataset, annotations_dataset, load_raw_labels=False, validation=False, eval_mode=False):
+    def __init__(self, split, features_dataset, annotations_dataset, validation=False, eval_mode=False):
         self.root_data = './data'
         self.is_multiview = None
-        self.crop = False
         self.dataset = features_dataset
         self.annotations = annotations_dataset
-        self.tauf = 10
-        self.skip_factor = 10
         self.data_files = []
         self.split = split
-        self.sample_rate = 1
         self.total_dimensions = 0
         self.validation = validation
         self.eval_mode = eval_mode
-        self.load_raw_labels = load_raw_labels
         
         # one hot encoding
         self.actions = self.__load_action_classes_mapping__()
         self.num_classes = len(self.actions)  # Assuming self.actions is a dictionary mapping class names to indices
+        print(f'Number of classes: {self.num_classes}')
 
         # list of all feature files
         if validation == True:
@@ -39,8 +35,8 @@ class EgoExoOmnivoreDataset(Dataset):
             #     self.data_files = sorted(glob.glob(os.path.join(self.root_data, f'features/{self.dataset}/split{self.split}/train/*_0.npy')))
             # else:
             self.data_files = sorted(glob.glob(os.path.join(self.root_data, f'features/{self.dataset}/split{self.split}/train/*.npy')))
+            print(f'Loading data from {self.root_data}/features/{self.dataset}/split{self.split}/train/*.npy')
         
-        self.data_files.sort()
 
         # Load and sum the dimensions of all data files
         for data_file in self.data_files:
@@ -60,15 +56,14 @@ class EgoExoOmnivoreDataset(Dataset):
         print('Number of samples: ', self.total_dimensions)
       
     def __len__(self):
-        # return the total number of frames in the dataa -> each frame is a sample
         return self.total_dimensions
 
     def __getitem__(self, idx):
-        data_file, frame_num = self.val_to_file_frame[idx]
+        data_file, frame_num = self.val_to_file_frame[idx] # frame_num == segment_num in the video
 
         video_id = os.path.splitext(os.path.basename(data_file))[0]
-        if self.is_multiview is not None and self.is_multiview == True:
-            video_id = video_id[0:-2] 
+        # if self.is_multiview is not None and self.is_multiview == True:
+        #     video_id = video_id[0:-2] 
 
         # Load the features and labels
         feature = load_features(data_file)
@@ -76,28 +71,25 @@ class EgoExoOmnivoreDataset(Dataset):
         take_name = take_name.rsplit('_', 1)[0]
         actions = self.actions
         
-        label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data='./data', annotation_dataset=self.annotations) 
+        label = load_labels(video_id=take_name, actions=actions, root_data='./data', annotation_dataset=self.annotations) 
         
         if len(feature) != len(label):
             print(take_name)
             print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
             raise ValueError('Length of feature and label does not match')
-        # feature = load_and_fuse_modalities(data_file, 'concat', dataset=self.dataset, sample_rate=self.sample_rate, is_multiview=self.is_multiview)
-        # label = load_labels(video_id=video_id, actions=self.actions, root_data=self.root_data, annotation_dataset=self.annotations, 
-                            # sample_rate=self.sample_rate, feature=feature, load_raw=self.load_raw_labels)
+
+        # print(f'Length of feature: {len(feature)} | Length of label: {len(label)} | Frame number: {frame_num}')
+        
    
-        # now get the specific frame
+        # now get the specific frame (segment)
         feature = feature[frame_num]
         label = label[frame_num]
 
-        if self.crop == True:
-            feature, label = self.__remove_start_and_end__(feature, label)
-
         # One-hot encode the label
-          # Assuming self.actions is a dictionary mapping class names to indices
         label_one_hot = torch.zeros(self.num_classes)
         label_one_hot[label] = 1
         label = label_one_hot
+
 
         feature = torch.tensor(feature).unsqueeze(0)  # Add batch dimension
         label = label.clone().detach().to(dtype=torch.float)  # Add batch dimension
@@ -116,15 +108,3 @@ class EgoExoOmnivoreDataset(Dataset):
                 actions[cls] = int(aid)
         return actions
 
-    def __remove_start_and_end__(self, feature, label):
-        # remove all samples with labels "action_start" and "action_end"
-        keep_indices = [i for i, x in enumerate(label) if x != "action_start"]
-        feature = [feature[i] for i in keep_indices]
-        label = [label[i] for i in keep_indices]
-
-        keep_indices = [i for i, x in enumerate(label) if x != "action_end"]
-        feature = [feature[i] for i in keep_indices]
-        label = [label[i] for i in keep_indices]
-
-        return feature, label
-    

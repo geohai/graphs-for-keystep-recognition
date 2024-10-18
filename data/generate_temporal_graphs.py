@@ -28,11 +28,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
 
     skip = args.skip_factor
     batch_idx_designation = 0
-    video_id = os.path.splitext(os.path.basename(data_file))[0]
-
-    # If using multiview features, remove the view number from the video_id
-    # if args.is_multiview is not None and args.is_multiview == True:
-    #     video_id = video_id[0:-2] 
+    take_name = os.path.splitext(os.path.basename(data_file))[0]
 
     # # Load the features and labels
     feature = load_features(data_file)
@@ -41,26 +37,26 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         feature_multiview = np.load(multiview_data_file)
         assert feature.shape == feature_multiview.shape, f'feature.shape: {feature.shape}, feature_multiview.shape: {feature_multiview.shape}'
         list_feature_multiview.append(feature_multiview)
-        print(f'Loaded multiview feature from {multiview_data_file}')
+        # print(f'Loaded multiview feature from {multiview_data_file}')
     
     
-    if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{video_id}.txt')):
-            video_id = video_id.rsplit('_', 1)[0]
+    if not os.path.exists(os.path.join(args.root_data, f'annotations/{args.dataset}/groundTruth/{take_name}.txt')):
+        take_name = take_name.rsplit('_', 1)[0]
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
-        label = load_labels(trimmed=True, video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
+        label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset)
         
         if len(feature) != len(label):
-            print(video_id)
+            print(take_name)
             print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
             raise ValueError('Length of feature and label does not match')
         
     else:
-        label = load_labels(trimmed=True, video_id=video_id, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
+        label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
         # print(f'Length of label: {len(label)} | Length of feature: {len(feature)}')
         batch_idx_path = os.path.join(args.root_data, 'annotations', args.dataset, 'batch_idx')
-        untrimmed_batch_idxs = load_batch_indices(batch_idx_path, video_id)
+        untrimmed_batch_idxs = load_batch_indices(batch_idx_path, take_name)
         batch_idx_designation = [i for i in untrimmed_batch_idxs if i != -1]
         label = get_segment_labels_by_batch_idxs(label, batch_idx_designation=batch_idx_designation)
         label = [mode(label[i]) for i in range(len(label))]
@@ -68,7 +64,6 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
 
 
     num_frame = feature.shape[0]
-    # print(f'Video ID: {video_id} | Num Frames: {num_frame} | Num Labels: {len(label)}')
 
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
@@ -143,13 +138,12 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
         view_idx = []
         for i in range(num_view):
             view_idx += [i]*num_frame
-        
-    # print(view_idx)
-    # print(len(view_idx))
+
+    print(f'Number of nodes: {len(feature)} | Number of edges: {len(node_source)} ')
 
 
     graphs = Data(x = torch.tensor(np.array(feature, dtype=np.float32), dtype=torch.float32),
-                  g = all_ids.index(video_id),
+                  g = all_ids.index(take_name),
                   edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int32), dtype=torch.long),
                   edge_attr = torch.tensor(edge_attr, dtype=torch.float32),
                   y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long),
@@ -157,10 +151,10 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                   view_idxs = torch.tensor(np.array(view_idx, dtype=np.int16), dtype=torch.long)) # added segments for subgraph selection using node indices
     
     
-    if video_id in train_ids:
-        torch.save(graphs, os.path.join(path_graphs, 'train', f'{video_id}.pt'))
+    if take_name in train_ids:
+        torch.save(graphs, os.path.join(path_graphs, 'train', f'{take_name}.pt'))
     else:
-        torch.save(graphs, os.path.join(path_graphs, 'val', f'{video_id}.pt'))
+        torch.save(graphs, os.path.join(path_graphs, 'val', f'{take_name}.pt'))
 
 
 if __name__ == "__main__":
@@ -178,8 +172,7 @@ if __name__ == "__main__":
     # Hyperparameters for the graph generation
     parser.add_argument('--tauf',          type=int,   help='Maximum frame difference between neighboring nodes', required=False)
     parser.add_argument('--skip_factor',   type=int,   help='Make additional connections between non-adjacent nodes', default=1000)
-    parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1) #downsample rate for labels (Julia-my labels are at 30Hz)
-    parser.add_argument('--is_multiview',   type=bool,   help='Using Multiview Features?', default=False)
+    parser.add_argument('--sample_rate',   type=int,   help='Downsampling rate for the input', default=1)
     parser.add_argument('--add_multiview',   help='Whether to add multiview features', action="store_true")
     parser.add_argument('--crop',   type=bool,   help='Crop action_start and action_end', default=False)
     

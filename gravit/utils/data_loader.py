@@ -38,17 +38,14 @@ def load_features(data_file):
     return np.load(data_file)
 
 
-def load_labels(actions, root_data, annotation_dataset, video_id,  load_descriptions=False, trimmed=True):
+def load_labels(actions, root_data, annotation_dataset, video_id,  load_descriptions=False):
     if load_descriptions:
-        if trimmed:
-            with open(os.path.join(root_data, f'annotations/{annotation_dataset}/descriptions/{video_id}.txt')) as f:
-            
-                return [line.strip() for line in f]
+        with open(os.path.join(root_data, f'annotations/{annotation_dataset}/descriptions/{video_id}.txt')) as f:
+            return [line.strip() for line in f]
 
     else:
-        if trimmed:
-            with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
-                return [actions[line.strip()] for line in f]
+        with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
+            return [actions[line.strip()] for line in f]
 
 
 def load_atomic_action_descriptions(root_data, annotation_dataset, video_id):

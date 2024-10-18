@@ -5,24 +5,6 @@ import torch_geometric
 import numpy as np
 # from gravit.utils.batch_process import graph_to_nn_batch, nn_batch_to_graph, multiview_graph_to_nn_batch
 
-# from transformers import MambaConfig, MambaModel
-# from mamba.models import MambaSeqEmbedding
-
-
-# def graph_to_nn_batch(x, batch, max_seq_len=25):
-#     batch_numbers = torch.unique(batch).sort()[0]
-
-#     batch_tensors = []
-#     for batch_num in batch_numbers:
-#         indices = torch.where(batch == batch_num)[0]
-#         batch_data = torch.index_select(x, 0, indices)
-#         padded_data = F.pad(batch_data, (0, 0, 0, max_seq_len - batch_data.size(0)))
-#         padded_data = padded_data[:max_seq_len, :]
-#         padded_data = padded_data.unsqueeze(0).transpose(1, 2)
-#         batch_tensors.append(padded_data)
-
-#     return torch.cat(batch_tensors, dim=0)
-
 
 # def multiview_graph_to_nn_batch(x, batch_idxs, view_idxs, max_seq_len=25): 
 #     batch_numbers = torch.unique(batch_idxs).sort()[0]

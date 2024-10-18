@@ -26,6 +26,7 @@ def train(cfg):
 
     # Input and output paths
     path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
+    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     if cfg['split'] is not None:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
@@ -42,7 +43,6 @@ def train(cfg):
     # Build a model and prepare the data loaders
     logger.info('Preparing a model and data loaders')
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print(device)
     model = build_model(cfg, device)
     model.to(device)
 
@@ -77,30 +77,30 @@ def train(cfg):
          
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
-            if 'batch_idxs' in data.keys():
-                batch = data.batch_idxs.to(device)
-            else:
-                batch = None
-            if 'view_idxs' in data.keys():
-                view_idx = data.view_idxs.to(device)
-            else:
-                view_idx = None
+            c, batch, view_idx = None, None, None
+            # if 'batch_idxs' in data.keys():
+            #     batch = data.batch_idxs.to(device)
+            # else:
+            #     batch = None
+            # if 'view_idxs' in data.keys():
+            #     view_idx = data.view_idxs.to(device)
+            # else:
+            #     view_idx = None
             if cfg['use_spf']:
                 c = data.c.to(device)
-            else:
-                c = None
 
             # print(f'X shape: {x.shape}, Y shape: {data.y.shape}')
             # if batch is not None:
             #     print(f'Batch shape: {batch.shape}')
-            # if x.shape[0] == 1:
-            #     continue
+            if x.shape[0] == 1:
+                continue
 
             logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
             
             loss = loss_func(logits, y)
             loss.backward()
             loss_sum += loss.item()
+            optimizer.step()
 
         # Adjust the learning rate
         scheduler.step()
@@ -138,25 +138,15 @@ def val(val_loader, use_spf, model, device, loss_func):
             g = data.g.tolist()
             edge_index = data.edge_index.to(device)
             edge_attr = data.edge_attr.to(device)
-            c = None
-            if 'batch_idxs' in data.keys():
-                batch = data.batch_idxs.to(device)
-            else:
-                batch = None
-            if 'view_idxs' in data.keys():
-                view_idx = data.view_idxs.to(device)
-            else:
-                view_idx = None
+            c, batch, view_idx = None, None, None
+            # if 'batch_idxs' in data.keys():
+            #     batch = data.batch_idxs.to(device)
+            # if 'view_idxs' in data.keys():
+            #     view_idx = data.view_idxs.to(device)
             if cfg['use_spf']:
                 c = data.c.to(device)
                 
             logits = model(x, edge_index, edge_attr, c, batch, view_idx=view_idx)
-
-            # if y.shape[0] != logits.shape[0]:
-            #     print('Shapes do not match')
-            #     print(f'y shape is {y.shape}')
-            #     print(f'Logits shape is {logits.shape}')
-
             loss = loss_func(logits, y)
             loss_sum += loss.item()
 
