@@ -74,7 +74,7 @@ class SPELL_HETEROGENEOUS(Module):
             edge_types = [ ('omnivore', 'to', 'omnivore')]
         
         metadata = (node_types, edge_types)
-        base_spell = SPELL(cfg)
+        base_spell = SPELL_BASE(cfg)
         self.model = to_hetero(base_spell, metadata, aggr='sum')
         
         # print('Model:', self.model)
@@ -128,7 +128,7 @@ class SPELL_HETEROGENEOUS(Module):
 
 class SPELL_BASE(Module):
     def __init__(self, cfg):
-        super(SPELL, self).__init__()
+        super(SPELL_BASE, self).__init__()
         
         self.use_ref = cfg['use_ref']
         self.num_modality = cfg['num_modality']
