@@ -48,6 +48,11 @@ def load_labels(actions, root_data, annotation_dataset, video_id,  load_descript
             return [actions[line.strip()] for line in f]
 
 
+def load_labels_raw(root_data, annotation_dataset, video_id):
+    with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
+        return [line.strip() for line in f]
+
+
 def load_atomic_action_descriptions(root_data, annotation_dataset, video_id):
     with open(os.path.join(root_data, f'annotations/{annotation_dataset}/aads/{video_id}.txt')) as f:
         return [line.strip() for line in f]
