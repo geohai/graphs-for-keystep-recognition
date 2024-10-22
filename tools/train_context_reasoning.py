@@ -84,18 +84,14 @@ def train(cfg):
             #     batch = None
             # if 'view_idxs' in data.keys():
             #     view_idx = data.view_idxs.to(device)
-            # else:
-            #     view_idx = None
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            # print(f'X shape: {x.shape}, Y shape: {data.y.shape}')
-            # if batch is not None:
-            #     print(f'Batch shape: {batch.shape}')
+            # if only 1 node, skip or else there is a batch norm error
             if x.shape[0] == 1:
                 continue
 
-            logits = model(x, edge_index, edge_attr, c, batch=batch, view_idx=view_idx)
+            logits = model(x, edge_index, edge_attr, c)
             
             loss = loss_func(logits, y)
             loss.backward()
@@ -146,7 +142,7 @@ def val(val_loader, use_spf, model, device, loss_func):
             if cfg['use_spf']:
                 c = data.c.to(device)
                 
-            logits = model(x, edge_index, edge_attr, c, batch, view_idx=view_idx)
+            logits = model(x, edge_index, edge_attr, c)
             loss = loss_func(logits, y)
             loss_sum += loss.item()
 
