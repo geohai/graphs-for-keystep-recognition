@@ -1,9 +1,18 @@
 import torch
 from torch.nn import Module, ModuleList, Conv1d, Sequential, ReLU, Dropout, functional as F
-from torch_geometric.nn import to_hetero, Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm
+from torch_geometric.nn import to_hetero, Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm, MLP
 import numpy as np
 from torch_geometric.data import HeteroData
+from gravit.models.naive import SimpleMLP
 
+
+class GraphMLP(torch.nn.Module):
+    def __init__(self, input_dim, final_dim, hidden_size=1056):
+        super(GraphMLP, self).__init__()
+        self.mlp = MLP([input_dim, hidden_size, final_dim], dropout=0.0)
+
+    def forward(self, x):
+        return self.mlp(x)
 
 
 class DilatedResidualLayer(Module):
@@ -83,7 +92,7 @@ class SPELL_HETEROGENEOUS(Module):
             edge_types = [ ('omnivore', 'to', 'omnivore')]
         
         metadata = (node_types, edge_types)
-        base_spell = SPELL(cfg)
+        base_spell = SPELL_BASE(cfg)
         self.model = to_hetero(base_spell, metadata, aggr='sum')
         
         # print('Model:', self.model)
@@ -142,9 +151,9 @@ class SPELL_HETEROGENEOUS(Module):
         return x_dict['omnivore']
         
 
-class SPELL(Module):
+class SPELL_BASE(Module):
     def __init__(self, cfg):
-        super(SPELL, self).__init__()
+        super(SPELL_BASE, self).__init__()
         
         self.use_ref = cfg['use_ref']
         self.num_modality = cfg['num_modality']
@@ -190,6 +199,7 @@ class SPELL(Module):
     def forward(self, x, edge_index, edge_attr, c=None):
         x = self.batch01(x)
         x = self.relu(x)
+        # x = self.mlp(x)
 
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]

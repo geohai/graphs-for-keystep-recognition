@@ -7,8 +7,6 @@ import json
 
 CLI_OUTPUT_DIR = "/local/juro4948/data/egoexo4d/egoexo"
 ANNOTATIONS_PATH = os.path.join(CLI_OUTPUT_DIR, "annotations")
-global ANNOTATIONS
-ANNOTATIONS = None
 
 
 def get_segment_labels_by_batch_idxs(label, batch_idx_designation):
@@ -46,17 +44,19 @@ def load_spatial_features(filepath, verbose=False):
     return spatial_feature
 
 
-def load_labels(actions, root_data, annotation_dataset, video_id,  load_descriptions=False, trimmed=True):
+def load_labels(actions, root_data, annotation_dataset, video_id,  load_descriptions=False):
     if load_descriptions:
-        if trimmed:
-            with open(os.path.join(root_data, f'annotations/{annotation_dataset}/descriptions/{video_id}.txt')) as f:
-            
-                return [line.strip() for line in f]
+        with open(os.path.join(root_data, f'annotations/{annotation_dataset}/descriptions/{video_id}.txt')) as f:
+            return [line.strip() for line in f]
 
     else:
-        if trimmed:
-            with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
-                return [actions[line.strip()] for line in f]
+        with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
+            return [actions[line.strip()] for line in f]
+
+
+def load_labels_raw(root_data, annotation_dataset, video_id):
+    with open(os.path.join(root_data, f'annotations/{annotation_dataset}/groundTruth/{video_id}.txt')) as f:
+        return [line.strip() for line in f]
 
 
 def load_atomic_action_descriptions(root_data, annotation_dataset, video_id):

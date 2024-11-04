@@ -362,6 +362,8 @@ def get_class_start_end_times(result):
     """
     Return the classes and their corresponding start and end times
     """
+    if len(result) == 0:
+        return [], [], []
     last_class = result[0]
     classes = [last_class]
     starts = [0]
@@ -408,55 +410,96 @@ def compare_segmentation(pred, label, th):
     return tp, fp, fn
 
 
-def get_eval_score_naive(path_annts, cfg, preds):
+
+def get_eval_score_naive(path_annts, cfg, preds, gts):
     total = 0
     correct = 0
     
     y_true = []
     y_preds = []    
     count = 0
+    threshold = [0.1, 0.25, 0.5]
+    tp, fp, fn = [0]*len(threshold), [0]*len(threshold), [0]*len(threshold)
     df = pd.DataFrame(columns=['true', 'pred'])
 
-    for (video_id, frame_num, pred) in preds:
-        # Get a list of ground-truth action labels
-        try:
-          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-            label = [line.strip() for line in f]
-            label = label[frame_num]
-        except:
-          video_id = video_id.rsplit('_', 1)[0]
-          # print(video_id)
-          with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-              label = [line.strip() for line in f]
-              label = label[frame_num]
+    for (video_id, frame_num, pred), label in zip(preds, gts):
+      # print(pred)
+      # Get a list of ground-truth action labels
+      # try:
+      #   with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+      #     label = [line.strip() for line in f]
+          
+      #     label = label[frame_num]
+      # except:
+      #   video_id = video_id.rsplit('_', 1)[0]
+      #   # print(video_id)
+      #   with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+      #       label = [line.strip() for line in f]
+      #       print(f'frame_num: {frame_num} | len(label): {len(label)}')
+      #       label = label[frame_num]
 
-        if cfg['crop']:
-           _, label = crop_to_start_and_end(feature=None, label=label)
+      # load ground truth labels
+      # convert ground truth back to 
+      actions = {}
+      with open(os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/mapping.txt')) as f:
+        for line in f:
+            aid, cls = line.strip().split(' ')
+            actions[int(aid)] = cls
 
-        # Append labels and predictions to lists
-        y_true.append(label)
-        y_preds.append(pred)
+      label = actions[int(label)] 
 
-        # gather data in df to write to csv
-        count += 1
-        new_row = pd.DataFrame({'true': [label], 'pred': [pred]})
-        df = pd.concat([df, new_row], ignore_index=True)
 
-        # save every 2000 rows to csv
-        if count % 2000 == 0:
-          df.to_csv(f'results/{cfg["exp_name"]}/csv/results_{count}.csv', index=False)
-          df = pd.DataFrame(columns=['true', 'pred'])
 
-        total += 1
+      if cfg['crop']:
+          _, label = crop_to_start_and_end(feature=None, label=label)
 
-        if pred == label:
-          correct += 1
+      # Append labels and predictions to lists
+      y_true.append(label)
+      y_preds.append(pred)
+
+      # gather data in df to write to csv
+      count += 1
+      new_row = pd.DataFrame({'true': [label], 'pred': [pred]})
+      df = pd.concat([df, new_row], ignore_index=True)
+
+      # save every 2000 rows to csv
+      if count % 2000 == 0:
+        df.to_csv(f'results/{cfg["exp_name"]}/csv/results_{count}.csv', index=False)
+        df = pd.DataFrame(columns=['true', 'pred'])
+
+      total += 1
+
+    ######### now iterate through collected labels
+    for i, lb in enumerate(y_true):
+      if y_preds[i] == lb:
+        correct += 1
+
+    for i, th in enumerate(threshold):
+        tp_, fp_, fn_ = compare_segmentation(y_preds, y_true, th)
+        tp[i] += tp_
+        fp[i] += fp_
+        fn[i] += fn_
+    #########
+
+        # if pred == label:
+        #   correct += 1
 
     acc = correct/total
     str_score = f'(Acc) {acc*100:.2f}%'
 
     # TODO: Modify this f1 score computation to use compare_segmentation()
-    f1 = f1_score(y_true, y_preds, average='micro')
+    for i, th in enumerate(threshold):
+        pre = tp[i] / (tp[i]+fp[i])
+        rec = tp[i] / (tp[i]+fn[i])
+        if pre+rec == 0:
+          f1 = 0
+        else:
+          f1 = np.nan_to_num(2*pre*rec / (pre+rec))
+        str_score += f', (F1@{th}) {f1*100:.2f}%'
+    print(f'Original eval: {str_score}')
+    # f1 = f1_score(y_true, y_preds, average='micro')
+
+
     str_score += f', (F1) {f1*100:.2f}%'
     
     return str_score
@@ -548,7 +591,6 @@ def get_eval_score(cfg, preds):
           # Get a list of ground-truth action labels
           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
             label = [line.strip() for line in f]
-            print(f'Loaded path: {path_annts}/{cfg["dataset"]}/groundTruth/{video_id}.txt')
 
 
           if len(label) != len(pred):
@@ -583,6 +625,64 @@ def get_eval_score(cfg, preds):
             else:
               f1 = np.nan_to_num(2*pre*rec / (pre+rec))
             str_score += f', (F1@{th}) {f1*100:.2f}%'
+        print(f'Original eval: {str_score}')
+
+
+        # ################## now evaluate with removing classes##################
+        # # load list of classes to remove
+        # with open('classes_to_remove.txt', 'r') as f:
+        #   classes_to_remove = f.readlines()
+        # classes_to_remove = [c.strip() for c in classes_to_remove]
+
+        # for (video_id, pred) in preds:
+        #   # Get a list of ground-truth action labels
+        #   with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+        #     label = [line.strip() for line in f]
+        #     # print(f'Loaded path: {path_annts}/{cfg["dataset"]}/groundTruth/{video_id}.txt')
+        #   if len(label) != len(pred):
+        #     print(f'len(pred): {len(pred)} | len(label): {len(label)}')
+        #     print(f'Length of pred and label do not match for {video_id}')
+            
+        #   print(f'Video id: {video_id} | Label length: {len(label)} | Pred length: {len(pred)}')
+
+        #   # write results of each video to csv: pred vs true labels
+        #   path = f"results/{cfg['exp_name']}/csv/results_{video_id}.csv"
+        #   pd.DataFrame(data=zip(label, pred), columns=['true', 'pred']).to_csv(path, index=False)
+        #   total += len(label)
+
+        #   for i, lb in enumerate(label):
+        #       if pred[i] == lb:
+        #         if lb not in classes_to_remove:
+        #           correct += 1
+
+        #   # remove classes
+        #   pred = [p for i, p in enumerate(pred) if label[i] not in classes_to_remove]
+        #   # remove from labels if corresponding pred is removed
+        #   label = [l for l, p in zip(label, pred) if p not in classes_to_remove]
+
+        #   for i, th in enumerate(threshold):
+        #       tp_, fp_, fn_ = compare_segmentation(pred, label, th)
+        #       tp[i] += tp_
+        #       fp[i] += fp_
+        #       fn[i] += fn_
+
+
+        # acc = correct/total
+        # str_score = f'(Acc) {acc*100:.2f}%'
+        # for i, th in enumerate(threshold):
+        #     pre = tp[i] / (tp[i]+fp[i])
+        #     rec = tp[i] / (tp[i]+fn[i])
+        #     if pre+rec == 0:
+        #       f1 = 0
+        #     else:
+        #       f1 = np.nan_to_num(2*pre*rec / (pre+rec))
+        #     str_score += f', (F1@{th}) {f1*100:.2f}%'
+        # print(f'Removed tail-classes eval: {str_score}')
+
+        ####################################################################
+
+          
+
     elif eval_type == "VS_max" or eval_type == "VS_avg":
 
         path_dataset = os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/eccv16_dataset_{cfg["dataset"].lower()}_google_pool5.h5')
@@ -823,7 +923,6 @@ def error_analysis(cfg, preds):
      
       total = None
       for i, (video_id, pred) in enumerate(preds):
-          print(video_id)
           # Get a list of ground-truth action labels
           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f: 
               label = [line.strip() for line in f]

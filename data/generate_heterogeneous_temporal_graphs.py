@@ -89,7 +89,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
-        label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
+        label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
         
         if len(feature) != len(label):
             print(take_name)
@@ -108,7 +108,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
     num_frame = feature.shape[0]
     if args.add_spatial:
-        assert spatial_feature.shape[0] == num_frame, f'feature.shape: {feature.shape}, spatial_feature.shape: {spatial_feature.shape}'
+        assert spatial_feature.shape[0] == num_frame, f'video: {take_name}, feature.shape: {feature.shape}, spatial_feature.shape: {spatial_feature.shape}, label.shape: {len(label)}'
 
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
@@ -228,6 +228,8 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     # edge_attr: information about whether the edge is spatial (0) or temporal (positive: backward, negative: forward)
     # y: labels
 
+    assert len(feature) == len(node_feature), f'feature.shape: {len(feature)}, node_feature.shape: {len(node_feature)}'
+
     if num_view > 1:
         feature_multiview = np.concatenate(list_feature_multiview)
         feature = np.concatenate((np.array(feature, dtype=np.float32), feature_multiview))
@@ -237,6 +239,9 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
             node_feature = np.concatenate((node_feature, feature_multidepth))
      
     
+    # print(f'Number of nodes: {len(feature)} | Number of edges: {len(node_source)} ')
+
+
     graphs = HeteroData()
 
     # define node types and their feature matrix [num_nodes, num_features]
@@ -420,6 +425,8 @@ if __name__ == "__main__":
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
 
     for split in list_splits:
+        if split == 'test':
+            continue
         # Get a list of training video ids
         print(f'Reading splits at {os.path.join(args.root_data, f"annotations/{args.dataset}/splits/train.{split}.bundle")}')
         with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
@@ -467,9 +474,11 @@ if __name__ == "__main__":
                     if vid not in train_ids:
                         data_sp = 'val'
                     matching_data_file = os.path.join(args.root_data, f'features/{args.features}/{split}/{data_sp}/{vid}_0.npy')
-                    assert matching_data_file in list_data_files, f'check {matching_data_file}'
-                    # if matching_data_file not in multidepth_data_files:
-                    #     print(f'{matching_data_file} not in omnivore ego files')
+                    # assert matching_data_file in list_data_files, f'check {matching_data_file}'
+                    
+                    if matching_data_file not in list_data_files:
+                        print(f'{matching_data_file} not in omnivore ego files')
+
                     if matching_data_file not in multidepth_data_files:
                         multidepth_data_files[matching_data_file] = []
                     multidepth_data_files[matching_data_file].append(multiview_data)

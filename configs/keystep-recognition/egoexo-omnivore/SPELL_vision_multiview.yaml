@@ -8,12 +8,11 @@ graph_name_eval: ego # to evaluate multiview graph on egocentric graph
 ####
 
 features_dataset: omnivore-segmentwise-ego
-annotations_dataset: egoexo-segmentwise-all-categories
+annotations_dataset: egoexo-segmentwise
 # text_dataset: detic-object-list-anchors_hands_sorted_features  #videorecap-clip_features #clip-videorecap-feats #vrecap-segment-keystep_features #clip-aad-feats #clip-keystep-description #
 
-spatial_dataset: depthmap-long-tail-removed #composite_40 #features_5objects
 
-
+#### other params ####
 load_segmentwise: True
 loss_name: ce #_ref
 use_spf: False
@@ -22,20 +21,19 @@ w_ref: 1
 num_modality: 1
 channel1: 1536
 channel2: 1024
-spatial_input_dim: 3136
-final_dim: 278  # Number of classes
+text_input_dim: 300
+final_dim: 495  # Number of classes
 input_dim: 1536  # Input dimension of features
 num_att_heads: 4
 dropout: 0.5
-lr: 0.0005
+lr: 0.00005
 wd: 0.0001
-batch_size: 256
+batch_size: 1
 sch_param: 45
-num_epoch: 150
+num_epoch: 50
 sample_rate: 1
 eval_type: KR
 similarity_metric: None #cosine
 similarity_threshold: 0.97
 tauf: 1
 skip_factor: 1000
-# 

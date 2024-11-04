@@ -26,10 +26,9 @@ def train(cfg):
 
     # Input and output paths
     path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
+    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     if cfg['split'] is not None:
         path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
-    print(f'path_graphs:', path_graphs)
-    path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
     os.makedirs(path_result, exist_ok=True)
     print(cfg)
 
@@ -77,9 +76,6 @@ def train(cfg):
             data = data.to(device)
 
             y = data.y_dict['omnivore'].to(device)
-            if len(data.x_dict['omnivore']) == 1:
-                # print('Skipping -> data.x_dict[omnivore]:', data.x_dict['omnivore'])
-                continue
 
             if cfg['use_spf']:
                 c = data.c.to(device)
