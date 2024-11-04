@@ -411,7 +411,7 @@ def compare_segmentation(pred, label, th):
 
 
 
-def get_eval_score_naive(path_annts, cfg, preds):
+def get_eval_score_naive(path_annts, cfg, preds, gts):
     total = 0
     correct = 0
     
@@ -422,19 +422,33 @@ def get_eval_score_naive(path_annts, cfg, preds):
     tp, fp, fn = [0]*len(threshold), [0]*len(threshold), [0]*len(threshold)
     df = pd.DataFrame(columns=['true', 'pred'])
 
-    for (video_id, frame_num, pred) in preds:
+    for (video_id, frame_num, pred), label in zip(preds, gts):
       # print(pred)
       # Get a list of ground-truth action labels
-      try:
-        with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-          label = [line.strip() for line in f]
-          label = label[frame_num]
-      except:
-        video_id = video_id.rsplit('_', 1)[0]
-        # print(video_id)
-        with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
-            label = [line.strip() for line in f]
-            label = label[frame_num]
+      # try:
+      #   with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+      #     label = [line.strip() for line in f]
+          
+      #     label = label[frame_num]
+      # except:
+      #   video_id = video_id.rsplit('_', 1)[0]
+      #   # print(video_id)
+      #   with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f:
+      #       label = [line.strip() for line in f]
+      #       print(f'frame_num: {frame_num} | len(label): {len(label)}')
+      #       label = label[frame_num]
+
+      # load ground truth labels
+      # convert ground truth back to 
+      actions = {}
+      with open(os.path.join(cfg['root_data'], f'annotations/{cfg["dataset"]}/mapping.txt')) as f:
+        for line in f:
+            aid, cls = line.strip().split(' ')
+            actions[int(aid)] = cls
+
+      label = actions[int(label)] 
+
+
 
       if cfg['crop']:
           _, label = crop_to_start_and_end(feature=None, label=label)
@@ -909,7 +923,6 @@ def error_analysis(cfg, preds):
      
       total = None
       for i, (video_id, pred) in enumerate(preds):
-          print(video_id)
           # Get a list of ground-truth action labels
           with open(os.path.join(path_annts, f'{cfg["dataset"]}/groundTruth/{video_id}.txt')) as f: 
               label = [line.strip() for line in f]

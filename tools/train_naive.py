@@ -7,7 +7,7 @@ from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model, get_loss_func
 from gravit.datasets import EgoExoOmnivoreDataset, GraphDataset
-
+import numpy as np
 
 def train(cfg):
     """
@@ -45,10 +45,31 @@ def train(cfg):
     ## Use the EgoExoOmnivore dataset
     # train = EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=False, eval_mode=False)
    
+    def custom_collate_fn(batch):
+        # Batch is a list of lists of samples, flatten it to a single list of samples
+        flat_batch = [sample for sublist in batch for sample in sublist]
+        
+        # Separate the data and labels
+        data, labels = zip(*flat_batch)
+
+        # Convert numpy arrays to tensors
+        data = [torch.tensor(d) for d in data]
+        labels = [torch.tensor(l) for l in labels]
+        
+        
+        # Stack the data and labels into tensors
+        data = torch.stack(data)
+        labels = torch.stack(labels)
+        
+        return data, labels
+
+    
     train_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=False, eval_mode=False),
-                               batch_size=cfg['batch_size'], shuffle=True, num_workers=128)
+                               batch_size=cfg['batch_size'], shuffle=True, num_workers=128, collate_fn=custom_collate_fn)
     val_loader = DataLoader(EgoExoOmnivoreDataset(cfg['split'], features_dataset=cfg['features_dataset'], annotations_dataset=cfg['annotations_dataset'], validation=True, eval_mode=False), 
-                            batch_size=cfg['batch_size'], shuffle=False, num_workers=128)
+                            batch_size=cfg['batch_size'], shuffle=False, num_workers=128, collate_fn=custom_collate_fn)
+    # train_loader = DataLoader(EgoExoOmnivoreDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
+    # val_loader = DataLoader(EgoExoOmnivoreDataset(os.path.join(path_graphs, 'val')))
 
 
 

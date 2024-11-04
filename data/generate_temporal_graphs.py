@@ -21,7 +21,7 @@ def compute_similarity_metric(node_i, node_j, metric):
         return np.dot(node_i, node_j)
 
 
-def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[]):
+def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, all_ids, list_multiview_data_files=[], split='train'):
     """
     Generate temporal graphs of a single video
     """
@@ -45,7 +45,11 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
-        label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset)
+        if split == 'test':
+            label = load_labels_raw( root_data=args.root_data, annotation_dataset=args.dataset, video_id=take_name)
+
+        else:
+            label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset)
         
         if len(feature) != len(label):
             print(take_name)
@@ -151,6 +155,9 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                   view_idxs = torch.tensor(np.array(view_idx, dtype=np.int16), dtype=torch.long)) # added segments for subgraph selection using node indices
     
     
+    if split == 'test':
+        torch.save(graphs, os.path.join(path_graphs, 'test', f'{take_name}.pt'))
+        return
     if take_name in train_ids:
         torch.save(graphs, os.path.join(path_graphs, 'train', f'{take_name}.pt'))
     else:
@@ -216,17 +223,27 @@ if __name__ == "__main__":
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
 
     for split in list_splits:
+        if split != 'test':
+            continue
         # Get a list of training video ids
-        print(f'Reading splits at {os.path.join(args.root_data, f"annotations/{args.dataset}/splits/train.{split}.bundle")}')
-        with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
-            train_ids = [os.path.splitext(line.strip())[0] for line in f]
-            print(f'Number of training videos: {len(train_ids)}')
+        if split != 'test':
+            print(f'Reading splits at {os.path.join(args.root_data, f"annotations/{args.dataset}/splits/train.{split}.bundle")}')
+            with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
+                train_ids = [os.path.splitext(line.strip())[0] for line in f]
+                print(f'Number of training videos: {len(train_ids)}')
+        else:
+            train_ids = []
+
 
         # path_graphs = os.path.join(args.root_data, f'graphs/{args.features}_{args.tauf}_{args.skip_factor}/{split}')
         path_graphs = os.path.join(args.root_data, f'graphs/{cfg["graph_name"]}/{split}')
         
-        os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
-        os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
+        if split == 'test':
+            os.makedirs(os.path.join(path_graphs, 'test'), exist_ok=True)
+        else:
+            os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
+            os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
+        
 
         list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*.npy')))
         multiview_data_files = {}
@@ -236,6 +253,8 @@ if __name__ == "__main__":
                 data_sp = 'train'
                 if vid not in train_ids:
                     data_sp = 'val'
+                if 'split' == 'test':
+                    data_sp = 'test'
                 matching_data_file = os.path.join(args.root_data, f'features/{args.features}/{split}/{data_sp}/{vid}_0.npy')
                 assert matching_data_file in list_data_files, f'check {matching_data_file}'
                 if matching_data_file not in multiview_data_files:
@@ -245,6 +264,7 @@ if __name__ == "__main__":
         #with Pool(processes=35) as pool:
         #    pool.map(partial(generate_temporal_graph, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids), list_data_files)
         for data_file in list_data_files:
-            generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '')
+            generate_temporal_graph(data_file, args=args, path_graphs=path_graphs, actions=actions, train_ids=train_ids, all_ids=all_ids, 
+                list_multiview_data_files=multiview_data_files[data_file] if data_file in multiview_data_files else '', split=split)
 
         print (f'Graph generation for {split} is finished')

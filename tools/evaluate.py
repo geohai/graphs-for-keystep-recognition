@@ -3,7 +3,7 @@ import glob
 import torch
 import argparse
 import numpy as np
-from torch_geometric.loader import DataLoader
+from torch_geometric.loader import DataLoader, DataListLoader
 from gravit.utils.parser import get_cfg
 from gravit.utils.logger import get_logger
 from gravit.models import build_model
@@ -13,7 +13,11 @@ from gravit.utils.eval_tool import get_eval_score, plot_predictions, error_analy
 from gravit.utils.formatter import get_formatting_data_dict, get_formatted_preds
 from gravit.utils.eval_tool import get_eval_score
 from gravit.utils.vs import avg_splits
+from torch.nn.parallel import DistributedDataParallel as DDP
 
+
+from torch_geometric.loader import DataListLoader
+from torch_geometric.nn import DataParallel
 
 def evaluate(cfg):
     """
@@ -29,10 +33,12 @@ def evaluate(cfg):
         print(f'path_graphs: {path_graphs}')
     else:
         path_graphs = os.path.join(cfg['root_data'], f'graphs/{cfg["graph_name"]}')
-        # print(f'path_graphs: {path_graphs}')
+        
 
     path_graphs = os.path.join(path_graphs, f'split{cfg["split"]}')
     path_result = os.path.join(cfg['root_result'], f'{cfg["exp_name"]}')
+
+    print(f'path_graphs: {path_graphs}')
 
     # Prepare the logger
     logger = get_logger(path_result, file_name='eval')
@@ -43,9 +49,11 @@ def evaluate(cfg):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
+    model = DataParallel(model, device_ids=[0, 1])
 
     print(f'Loading the data from {path_graphs}')
-    val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+    # val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+    val_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
     num_val_graphs = len(val_loader)
 
@@ -68,22 +76,26 @@ def evaluate(cfg):
         print(f'Batch size: {cfg["batch_size"]}')
         
         for i, data in enumerate(val_loader, 1):
-            g = data.g.tolist()
-            x = data.x.to(device)
-            y = data.y.to(device) 
-            edge_index = data.edge_index.to(device)
-            edge_attr = data.edge_attr.to(device)
-            c, batch = None, None
+            # g = data.g.tolist()
+            # x = data.x.to(device)
+            # y = data.y.to(device) 
+            # edge_index = data.edge_index.to(device)
+            # edge_attr = data.edge_attr.to(device)
+            # c, batch = None, None
             # if 'batch_idxs' in data.keys():
             #     batch = data.batch_idxs
             #     batch = batch.to(device)
             # else:
             #     batch = None
+            y = torch.cat([dt.y for dt in data], 0).to(device)
+            g = [dt.g for dt in data]
             
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            logits = model(x, edge_index, edge_attr, c, batch=batch)
+            # logits = model(x, edge_index, edge_attr, c, batch=batch)
+            logits = model(data)
+
 
             # Change the format of the model output
             preds = get_formatted_preds(cfg, logits, g, data_dict)

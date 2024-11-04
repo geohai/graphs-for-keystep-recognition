@@ -7,8 +7,6 @@ import json
 
 CLI_OUTPUT_DIR = "/local/juro4948/data/egoexo4d/egoexo"
 ANNOTATIONS_PATH = os.path.join(CLI_OUTPUT_DIR, "annotations")
-global ANNOTATIONS
-ANNOTATIONS = None
 
 
 def get_segment_labels_by_batch_idxs(label, batch_idx_designation):
