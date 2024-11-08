@@ -223,7 +223,7 @@ if __name__ == "__main__":
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
 
     for split in list_splits:
-        if split != 'test':
+        if split == 'test':
             continue
         # Get a list of training video ids
         if split != 'test':

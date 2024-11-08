@@ -1,10 +1,10 @@
 exp_name: gravit-segmentwise-multiview-heterogeneous 
 model_name: SPELL_HETEROGENEOUS 
-graph_name: multiview # to create multiview graph
+graph_name: multiview-depth # to create multiview graph
 
 #### When the training data is multiview, the eval data has to be single view ####
-# graph_name: ego # run once to create ego-centric graph (needed to evaluate multi-view graph)
-graph_name_eval: ego # to evaluate multiview graph on egocentric graph
+# graph_name: ego-depth # run once to create ego-centric graph (needed to evaluate multi-view graph)
+graph_name_eval: ego-depth # to evaluate multiview graph on egocentric graph
 ####
 
 features_dataset: omnivore-segmentwise-ego
@@ -27,9 +27,9 @@ final_dim: 278  # Number of classes
 input_dim: 1536  # Input dimension of features
 num_att_heads: 4
 dropout: 0.5
-lr: 0.0005
+lr: 0.0001
 wd: 0.0001
-batch_size: 256
+batch_size: 64
 sch_param: 45
 num_epoch: 150
 sample_rate: 1

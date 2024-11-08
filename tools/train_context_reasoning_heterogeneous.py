@@ -2,7 +2,7 @@ import os
 import yaml
 import torch
 import torch.optim as optim
-from torch_geometric.loader import DataLoader
+from torch_geometric.loader import DataListLoader, DataLoader
 from torch_geometric.nn import pool
 from gravit.utils.parser import get_args, get_cfg
 from gravit.utils.logger import get_logger
@@ -15,7 +15,7 @@ from gravit.utils.eval_tool import get_eval_score
 import numpy as np
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-
+from torch_geometric.nn import DataParallel
 # Initialize distributed training
 # dist.init_process_group("gloo")
 
@@ -44,9 +44,12 @@ def train(cfg):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
+    # model = DataParallel(model, device_ids=[0, 1])
     model.to(device)
 
     print(f'Loading the data from {path_graphs}')
+    # train_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
+    # val_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'val')))
     train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
     val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
@@ -77,12 +80,14 @@ def train(cfg):
 
             y = data.y_dict['omnivore'].to(device)
 
-            if cfg['use_spf']:
-                c = data.c.to(device)
-            else:
-                c = None
+            # if cfg['use_spf']:
+            #     c = data.c.to(device)
+            # else:
+            #     c, batch, view_idx = None, None, None
 
-            logits = model(data, c)
+            # y = torch.cat([dt.y_dict['omnivore'] for dt in data], 0).to(device)
+
+            logits = model(data)
             
             loss = loss_func(logits, y)
             loss.backward()
@@ -122,15 +127,16 @@ def val(val_loader, use_spf, model, device, loss_func):
     predictions = []
     with torch.no_grad():
         for data in val_loader:  
-            y = data.y_dict['omnivore'].to(device)
+            # y = data.y_dict['omnivore'].to(device)
             data = data.to(device)
+            y = data.y_dict['omnivore'].to(device)
             
-            if use_spf:
-                c = data.c.to(device)
-            else:
-                c = None
+            # if use_spf:
+            #     c = data.c.to(device)
+            # else:
+            #     c = None
                 
-            logits = model(data, c)
+            logits = model(data)
 
             loss = loss_func(logits, y)
             loss_sum += loss.item()

@@ -82,7 +82,7 @@ def evaluate_heterogeneous(cfg):
             else:
                 c = None
                 
-            logits = model(data, c)
+            logits = model(data)
 
             # Change the format of the model output
             preds = get_formatted_preds(cfg, logits, g, data_dict)

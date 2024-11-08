@@ -16,8 +16,6 @@ import numpy as np
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-
-from torch_geometric.loader import DataListLoader
 from torch_geometric.nn import DataParallel
 
 # Initialize distributed training
