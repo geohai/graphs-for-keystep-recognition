@@ -158,6 +158,19 @@ class SPELL(Module):
         num_att_heads = cfg['num_att_heads']
         dropout = cfg['dropout']
 
+        ######
+        self.layer11 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
+        self.batch11 = BatchNorm(channels[1])
+        self.layer12 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
+        self.batch12 = BatchNorm(channels[1])
+        self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
+        self.batch13 = BatchNorm(channels[1])
+
+        self.layer31 = SAGEConv(channels[1], final_dim)
+        self.layer32 = SAGEConv(channels[1], final_dim)
+        self.layer33 = SAGEConv(channels[1], final_dim)
+        #####
+
         
         if self.num_modality == 2:
             self.layer012 = Linear(-1, channels[0])
@@ -166,23 +179,23 @@ class SPELL(Module):
         self.relu = ReLU()
         self.dropout = Dropout(dropout)
 
-        self.layer11 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
-        self.batch11 = BatchNorm(channels[0])
-        self.layer12 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
-        self.batch12 = BatchNorm(channels[0])
-        self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
-        self.batch13 = BatchNorm(channels[0])
+        # self.layer11 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
+        # self.batch11 = BatchNorm(channels[0])
+        # self.layer12 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
+        # self.batch12 = BatchNorm(channels[0])
+        # self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
+        # self.batch13 = BatchNorm(channels[0])
 
-        if num_att_heads > 0:
-            self.layer21 = GATv2Conv(channels[0], channels[1], heads=num_att_heads, add_self_loops=False) #DEBUGGING, set add_self_loops to False
-        else:
-            self.layer21 = SAGEConv(channels[0], channels[1])
-            num_att_heads = 1
-        self.batch21 = BatchNorm(channels[1]*num_att_heads)
+        # if num_att_heads > 0:
+        #     self.layer21 = GATv2Conv(channels[0], channels[1], heads=num_att_heads, add_self_loops=False) #DEBUGGING, set add_self_loops to False
+        # else:
+        #     self.layer21 = SAGEConv(channels[0], channels[1])
+        #     num_att_heads = 1
+        # self.batch21 = BatchNorm(channels[1]*num_att_heads)
 
-        self.layer31 = SAGEConv(channels[1]*num_att_heads, final_dim)
-        self.layer32 = SAGEConv(channels[1]*num_att_heads, final_dim)
-        self.layer33 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        # self.layer31 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        # self.layer32 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        # self.layer33 = SAGEConv(channels[1]*num_att_heads, final_dim)
 
         if self.use_ref:
             self.layer_ref1 = Refinement(final_dim)
@@ -204,30 +217,30 @@ class SPELL(Module):
         x1 = self.batch11(x1)
         x1 = self.relu(x1)
         x1 = self.dropout(x1)
-        x1 = self.layer21(x1, edge_index_f)
-        x1 = self.batch21(x1)
-        x1 = self.relu(x1)
-        x1 = self.dropout(x1)
+        # x1 = self.layer21(x1, edge_index_f)
+        # x1 = self.batch21(x1)
+        # x1 = self.relu(x1)
+        # x1 = self.dropout(x1)
 
         ######## Backward-graph stream
         x2 = self.layer12(x, edge_index_b)
         x2 = self.batch12(x2)
         x2 = self.relu(x2)
         x2 = self.dropout(x2)
-        x2 = self.layer21(x2, edge_index_b)
-        x2 = self.batch21(x2)
-        x2 = self.relu(x2)
-        x2 = self.dropout(x2)
+        # x2 = self.layer21(x2, edge_index_b)
+        # x2 = self.batch21(x2)
+        # x2 = self.relu(x2)
+        # x2 = self.dropout(x2)
 
         ######## Undirected-graph stream
         x3 = self.layer13(x, edge_index)
         x3 = self.batch13(x3)
         x3 = self.relu(x3)
         x3 = self.dropout(x3)
-        x3 = self.layer21(x3, edge_index)
-        x3 = self.batch21(x3)
-        x3 = self.relu(x3)
-        x3 = self.dropout(x3)
+        # x3 = self.layer21(x3, edge_index)
+        # x3 = self.batch21(x3)
+        # x3 = self.relu(x3)
+        # x3 = self.dropout(x3)
 
         x1 = self.layer31(x1, edge_index_f)
         x2 = self.layer32(x2, edge_index_b)

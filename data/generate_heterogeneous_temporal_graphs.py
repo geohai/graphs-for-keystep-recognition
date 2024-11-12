@@ -45,7 +45,10 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
     if args.add_text:
         if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
-            raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
+            print(f'Text feature not found for {take_name}')
+            return 
+
+            # raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
         text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
 
  
