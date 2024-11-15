@@ -1,11 +1,11 @@
 exp_name: gravit-segmentwise-multiview-heterogeneous 
 model_name: SPELL_HETEROGENEOUS # SimpleMLP
-graph_name: multiview-detic   # name of saved dir in data/graphs
-# graph_name: ego-detic
-graph_name_eval: ego-detic # when the training data is multiview, the eval data has to be single view
+# graph_name: multiview-narration   # name of saved dir in data/graphs
+graph_name: ego-narration
+graph_name_eval: ego-narration # when the training data is multiview, the eval data has to be single view
 features_dataset: omnivore-segmentwise-ego
 annotations_dataset: egoexo-segmentwise-all-categories
-text_dataset: detic-object-list-all_features #detic-object-list-anchors_hands_sorted_features
+text_dataset: videorecap-segment_features #detic-object-list-all_features #detic-object-list-anchors_hands_sorted_features
 # spatial_dataset: clip-videorecap-feats #depthmap #composite_40 #features_5objects
 
 
@@ -25,9 +25,9 @@ num_att_heads: 4
 dropout: 0.5
 lr: 0.0005
 wd: 0.01
-batch_size: 128
+batch_size: 32
 sch_param: 45
-num_epoch: 50
+num_epoch: 60
 sample_rate: 1
 eval_type: KR
 similarity_metric: None #cosine

@@ -191,7 +191,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     for k in range(1, num_view):
                         node_source.append(i)   # ego view
                         node_target.append(j+num_frame*k) # each exo view (i==j)
-                        edge_attr.append(-1)
+                        edge_attr.append(-2)
 
 
                     if args.add_spatial:

@@ -46,6 +46,8 @@ def train(cfg):
     print(device)
     model = build_model(cfg, device)
     model.to(device)
+    # number of model weights
+    print(f'Number of model weights:', sum(p.numel() for p in model.parameters()))
 
 
     train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
@@ -62,7 +64,8 @@ def train(cfg):
     print(f'Length of train_loader:', len(train_loader))
     print(f'Batch size:', cfg['batch_size'])
 
-
+    import time
+    start = time.time()
     min_loss_val = float('inf')
     for epoch in range(1, cfg['num_epoch']+1):
         print(f'------- Epoch: {epoch} --------')
@@ -110,6 +113,8 @@ def train(cfg):
         logger.info(f'Epoch [{epoch:03d}|{cfg["num_epoch"]:03d}] loss_train: {loss_train:.4f}, loss_val: {loss_val:.4f}, best: epoch {epoch_best:03d}')
 
     logger.info('Training finished')
+    end = time.time()
+    print(f'Time taken: {end - start}')
 
 
 def val(val_loader, use_spf, model, device, loss_func):
