@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module, ModuleList, Conv1d, Sequential, ReLU, Dropout, functional as F
-from torch_geometric.nn import to_hetero, Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm, MLP
+from torch_geometric.nn import to_hetero, Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm, MLP, RGCNConv
 import numpy as np
 from torch_geometric.data import HeteroData
 from gravit.models.naive import SimpleMLP
@@ -259,7 +259,7 @@ class SPELL_HETEROGENEOUS(Module):
 class SPELL_BASE(Module):
     def __init__(self, cfg):
         super(SPELL_BASE, self).__init__()
-        
+        self.use_spf = cfg['use_spf']
         self.use_ref = cfg['use_ref']
         self.num_modality = cfg['num_modality']
 
@@ -290,9 +290,12 @@ class SPELL_BASE(Module):
         self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
         self.batch13 = BatchNorm(channels[1])
 
-        self.layer31 = SAGEConv(channels[1], final_dim)
-        self.layer32 = SAGEConv(channels[1], final_dim)
-        self.layer33 = SAGEConv(channels[1], final_dim)
+        # self.layer31 = SAGEConv(channels[1], final_dim)
+        # self.layer32 = SAGEConv(channels[1], final_dim)
+        # self.layer33 = SAGEConv(channels[1], final_dim)
+        self.layer31 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer32 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer33 = RGCNConv(channels[1], final_dim, num_relations=2)
         #####
 
         if num_att_heads > 0:
@@ -329,6 +332,9 @@ class SPELL_BASE(Module):
 
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]
+        edge_type = (edge_attr != -2).type(torch.int64)
+        edge_type_f = (edge_attr[edge_attr<=0] != -2).type(torch.int64)
+        edge_type_b = (edge_attr[edge_attr>=0] != -2).type(torch.int64)
 
 
         ######## Forward-graph stream
@@ -362,9 +368,9 @@ class SPELL_BASE(Module):
         # x3 = self.relu(x3)
         # x3 = self.dropout(x3)
 
-        x1 = self.layer31(x1, edge_index_f)
-        x2 = self.layer32(x2, edge_index_b)
-        x3 = self.layer33(x3, edge_index)
+        x1 = self.layer31(x1, edge_index_f, edge_type_f)
+        x2 = self.layer32(x2, edge_index_b, edge_type_b)
+        x3 = self.layer33(x3, edge_index, edge_type)
 
         out = x1+x2+x3
             

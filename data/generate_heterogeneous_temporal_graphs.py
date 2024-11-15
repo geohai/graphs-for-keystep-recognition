@@ -164,7 +164,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     for k in range(1, num_view):
                         node_source.append(i)   # ego view
                         node_target.append(j+num_frame*k) # each exo view (i==j)
-                        edge_attr.append(-1)
+                        edge_attr.append(-2)
 
 
                     if args.add_spatial:
@@ -179,7 +179,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                             # exo to ego edges for spatial nodes
                             spatial_node_source.append(i)
                             spatial_node_target.append(j+num_frame*k)
-                            spatial_edge_attr.append(-1)
+                            spatial_edge_attr.append(-2)
 
                             # multiview-spatial to omnivore corresponding view
                             hetero_node_source.append(i+num_frame*k)
