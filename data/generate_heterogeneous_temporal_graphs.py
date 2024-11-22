@@ -45,6 +45,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
     if args.add_text:
         if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
+            print(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
             print(f'Text feature not found for {take_name}')
             return 
 
@@ -52,8 +53,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
 
  
- 
-
 
     # load spatial features
     if args.add_spatial:
@@ -98,13 +97,13 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
-        label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
-        
-        if len(feature) != len(label):
-            print(take_name)
-            print(f'Length of feature: {len(feature)} | Length of label: {len(label)}')
-            raise ValueError('Length of feature and label does not match')
-        
+       if split == 'test':
+           label = load_labels_raw( root_data=args.root_data, annotation_dataset=args.dataset, video_id=take_name)
+
+
+       else:
+           label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset)
+
     else:
         label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
         batch_idx_path = os.path.join(args.root_data, 'annotations', args.dataset, 'batch_idx')
@@ -296,11 +295,13 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     # graphs['omnivore'].batch_idxs = batch_idx_designation
 
 
+    if split == 'test':
+       torch.save(graphs, os.path.join(path_graphs, 'test', f'{take_name}.pt'))
+       return
     if take_name in train_ids:
         torch.save(graphs, os.path.join(path_graphs, 'train', f'{take_name}.pt'))
     else:
         torch.save(graphs, os.path.join(path_graphs, 'val', f'{take_name}.pt'))
-
 
     # # # # Select the first 3 nodes of 'node_type1'
     # data = graphs
@@ -453,22 +454,26 @@ if __name__ == "__main__":
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
 
     for split in list_splits:
+        if split != 'test':
+            continue
         # Get a list of training video ids
-        print(f'Reading splits at {os.path.join(args.root_data, f"annotations/{args.dataset}/splits/train.{split}.bundle")}')
-        with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
-            train_ids = [os.path.splitext(line.strip())[0] for line in f]
-            print(f'Number of training videos: {len(train_ids)}')
+        if split != 'test':
+            print(f'Reading splits at {os.path.join(args.root_data, f"annotations/{args.dataset}/splits/train.{split}.bundle")}')
+            with open(os.path.join(args.root_data, f'annotations/{args.dataset}/splits/train.{split}.bundle')) as f:
+                train_ids = [os.path.splitext(line.strip())[0] for line in f]
+                print(f'Number of training videos: {len(train_ids)}')
+        else:
+            train_ids = []
+
 
         # path_graphs = os.path.join(args.root_data, f'graphs/{args.features}_{args.tauf}_{args.skip_factor}/{split}')
         path_graphs = os.path.join(args.root_data, f'graphs/{cfg["graph_name"]}/{split}')
-
-        # remove path_graphs
-        if os.path.exists(path_graphs):
-            print(f'Removing {path_graphs}')
-            os.system(f'rm -r {path_graphs}')
         
-        os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
-        os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
+        if split == 'test':
+            os.makedirs(os.path.join(path_graphs, 'test'), exist_ok=True)
+        else:
+            os.makedirs(os.path.join(path_graphs, 'train'), exist_ok=True)
+            os.makedirs(os.path.join(path_graphs, 'val'), exist_ok=True)
 
         list_data_files = sorted(glob.glob(os.path.join(args.root_data, f'features/{args.features}/{split}/*/*.npy')))
         multiview_data_files = {}
