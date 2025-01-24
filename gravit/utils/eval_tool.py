@@ -422,7 +422,9 @@ def get_eval_score_naive(path_annts, cfg, preds, gts):
     tp, fp, fn = [0]*len(threshold), [0]*len(threshold), [0]*len(threshold)
     df = pd.DataFrame(columns=['true', 'pred'])
 
+    print(f'len(preds): {len(preds)} | len(gts): {len(gts)}')
     for (video_id, frame_num, pred), label in zip(preds, gts):
+      print(frame_num)
       # print(pred)
       # Get a list of ground-truth action labels
       # try:
@@ -449,10 +451,6 @@ def get_eval_score_naive(path_annts, cfg, preds, gts):
       label = actions[int(label)] 
 
 
-
-      if cfg['crop']:
-          _, label = crop_to_start_and_end(feature=None, label=label)
-
       # Append labels and predictions to lists
       y_true.append(label)
       y_preds.append(pred)
@@ -463,9 +461,9 @@ def get_eval_score_naive(path_annts, cfg, preds, gts):
       df = pd.concat([df, new_row], ignore_index=True)
 
       # save every 2000 rows to csv
-      if count % 2000 == 0:
-        df.to_csv(f'results/{cfg["exp_name"]}/csv/results_{count}.csv', index=False)
-        df = pd.DataFrame(columns=['true', 'pred'])
+      # if count % 2000 == 0:
+      df.to_csv(f'results/{cfg["exp_name"]}/csv/{video_id}.csv', index=False)
+      df = pd.DataFrame(columns=['true', 'pred'])
 
       total += 1
 
