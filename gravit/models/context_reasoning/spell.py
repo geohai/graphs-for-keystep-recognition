@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module, ModuleList, Conv1d, Sequential, ReLU, Dropout, functional as F
-from torch_geometric.nn import Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm
+from torch_geometric.nn import Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm, RGCNConv
 import torch_geometric
 import numpy as np
 
@@ -212,9 +212,12 @@ class SPELL(Module):
         self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
         self.batch13 = BatchNorm(channels[1])
 
-        self.layer31 = SAGEConv(channels[1], final_dim)
-        self.layer32 = SAGEConv(channels[1], final_dim)
-        self.layer33 = SAGEConv(channels[1], final_dim)
+        self.layer31 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer32 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer33 = RGCNConv(channels[1], final_dim, num_relations=2)
+        # self.layer31 = SAGEConv(channels[1], final_dim)
+        # self.layer32 = SAGEConv(channels[1], final_dim)
+        # self.layer33 = SAGEConv(channels[1], final_dim)
         #####
 
         if num_att_heads > 0:
@@ -263,6 +266,11 @@ class SPELL(Module):
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]
 
+        edge_type = (edge_attr != -2).type(torch.int64)
+        edge_type_f = (edge_attr[edge_attr<=0] != -2).type(torch.int64)
+        edge_type_b = (edge_attr[edge_attr>=0] != -2).type(torch.int64)
+        
+
   
         ######## Forward-graph stream
         x1 = self.layer11(x, edge_index_f)
@@ -294,9 +302,12 @@ class SPELL(Module):
         # x3 = self.relu(x3)
         # x3 = self.dropout(x3)
 
-        x1 = self.layer31(x1, edge_index_f)
-        x2 = self.layer32(x2, edge_index_b)
-        x3 = self.layer33(x3, edge_index)
+        # x1 = self.layer31(x1, edge_index_f)
+        # x2 = self.layer32(x2, edge_index_b)
+        # x3 = self.layer33(x3, edge_index)
+        x1 = self.layer31(x1, edge_index_f, edge_type_f)
+        x2 = self.layer32(x2, edge_index_b, edge_type_b)
+        x3 = self.layer33(x3, edge_index, edge_type)
 
         out = x1+x2+x3
             

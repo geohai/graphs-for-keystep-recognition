@@ -97,7 +97,7 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                     for k in range(1, num_view):
                         node_source.append(i)
                         node_target.append(j+num_frame*k)
-                        edge_attr.append(1)
+                        edge_attr.append(-1)
 
             # Make additional connections between non-adjacent nodes
             # This can help reduce over-segmentation of predictions in some cases
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
 
     for split in list_splits:
-        if split != 'test':
+        if split == 'test':
             continue
         # Get a list of training video ids
         if split != 'test':
