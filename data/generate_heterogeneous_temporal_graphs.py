@@ -15,6 +15,27 @@ from torch_geometric.utils import to_networkx
 import networkx as nx
 import matplotlib.pyplot as plt
 
+takes_json_path = '/home/juro4948/gravit/data/egoexo4d/egoexo4d/egoexo/takes.json'
+with open(takes_json_path) as f:
+    takes = json.load(f)
+
+
+def find_best_exo_view(take_name):
+    global count
+    take_name = take_name.rsplit('_', 1)[0]
+    for take_dict in takes:
+        if take_dict['take_name'] == take_name:
+            try:
+                return take_dict['best_exo'][-1]
+            except:
+                count += 1
+                print('Best exo view not found')
+                return 1
+    if 'sfu_cooking015_6' in take_name or 'georgiatech_cooking_08_01_6' in take_name:
+        count += 1
+        return 1
+    raise ValueError(f'Best exo view not found for {take_name}')
+
 def compute_similarity_metric(node_i, node_j, metric):
     if metric == 'cosine':
         return np.dot(node_i, node_j) / (np.linalg.norm(node_i) * np.linalg.norm(node_j))
@@ -37,7 +58,14 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     # # Load the features and label
     feature = load_features(data_file)
     list_feature_multiview = []
+    
+    # code to find best exo
+    best_exo_num = find_best_exo_view(take_name)
+    num_view = 1
+    print(f'Best exo view for {take_name}: {best_exo_num}')
     for multiview_data_file in list_multiview_data_files:
+        take_num = multiview_data_file[-1]
+        # if take_num == best_exo_num:
         feature_multiview = np.load(multiview_data_file)
         assert feature.shape == feature_multiview.shape, f'feature.shape: {feature.shape}, feature_multiview.shape: {feature_multiview.shape}'
         list_feature_multiview.append(feature_multiview)
@@ -46,7 +74,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     if args.add_text:
         if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
             print(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
-            print(f'Text feature not found for {take_name}')
+            # print(f'Text feature not found for {take_name}')
             return 
 
             # raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
@@ -117,7 +145,11 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     num_frame = feature.shape[0]
     if args.add_spatial:
         assert spatial_feature.shape[0] == num_frame, f'feature.shape: {feature.shape}, spatial_feature.shape: {spatial_feature.shape}'
-
+    if args.add_text:
+        assert text_feature.shape[0] == num_frame, f'feature.shape: {feature.shape}, text_feature.shape: {text_feature.shape}'
+        if text_feature.shape[0] != num_frame:
+            print(f'{take_name}--omnivore: {feature.shape}, text_feature: {text_feature.shape}')
+            return
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
     # edges between omnivore
@@ -143,9 +175,10 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         text_hetero_node_target = []
         text_hetero_edge_attr = []
 
-        # text_node_source = []
-        # text_node_target = []
-        # text_edge_attr = []
+        text_node_source = []
+        text_node_target = []
+        text_edge_attr = []
+
 
     num_view = len(list_feature_multiview)+1
     for i in range(num_frame):
@@ -166,11 +199,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                 #     spatial_node_target.append(j)
                 #     spatial_edge_attr.append(np.sign(frame_diff))
 
-                # # # connect text nodes across frames
-                # if args.add_text:
-                #     text_node_source.append(i)
-                #     text_node_target.append(j)
-                #     text_edge_attr.append(np.sign(frame_diff))
+                # # connect text nodes across frames
+                if args.add_text:
+                    # if i != j:
+                    text_node_source.append(i)
+                    text_node_target.append(j)
+                    text_edge_attr.append(np.sign(frame_diff))
 
                 
                 # add edges between the same view in different frames
@@ -198,7 +232,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                         # ego spatial to ego omnivore
                         spatial_hetero_node_source.append(i)
                         spatial_hetero_node_target.append(j)
-                        spatial_hetero_edge_attr.append(-1)
+                        spatial_hetero_edge_attr.append(-2)
                         
                         # for k in range(1, num_view):
                         #     # exo to ego edges for spatial nodes
@@ -216,9 +250,8 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     if args.add_text:
                         text_hetero_node_source.append(i)
                         text_hetero_node_target.append(j)
-                        text_hetero_edge_attr.append(-1)
-
-                        
+                        text_hetero_edge_attr.append(-2)
+                         
 
             # Make additional connections between non-adjacent nodes
             # This can help reduce over-segmentation of predictions in some cases
@@ -285,8 +318,22 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([text_hetero_node_source, text_hetero_node_target], dtype=np.int32), dtype=torch.long)
         graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(text_hetero_edge_attr, dtype=torch.float32)
 
-        # graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([text_node_source, text_node_target], dtype=np.int32), dtype=torch.long)
-        # graphs['text', 'to', 'text'].edge_attr = torch.tensor(text_edge_attr, dtype=torch.float32)
+        # print(f'AFTER ADDING TEXT: {graphs["omnivore", "to", "text"].edge_index.shape}')
+        graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([text_node_source, text_node_target], dtype=np.int32), dtype=torch.long)
+        graphs['text', 'to', 'text'].edge_attr = torch.tensor(text_edge_attr, dtype=torch.float32)
+
+        # # select the first 3 nodes for text and print their connections
+        # # print(f'First 3 nodes for text: {graphs["text"].x[:3]}')
+        # # print(f'Edges for text: {graphs["text", "to", "text"].edge_index[:, :10]}')
+        # # print(f'Edge attributes for text: {graphs["text", "to", "text"].edge_attr[:10]}')
+        # print(f'Number of edges for omnivore-text: {graphs["omnivore", "to", "text"].edge_index.shape[1]}')
+        # print(f'Edges for omnivore to text: {graphs["omnivore", "to", "text"].edge_index}')
+        # print(f'Edge attributes for omnivore to text: {graphs["omnivore", "to", "text"].edge_attr[:10]}')
+        # print(f'Number of nodes for text: {graphs["text"].x.shape[0]}')
+        # print(f'Number of nodes for omnivore: {graphs["omnivore"].x.shape[0]}')
+        assert graphs["text"].x.shape[0] == graphs["omnivore"].x.shape[0], f'Number of nodes for text: {graphs["text"].x.shape[0]}, Number of nodes for omnivore: {graphs["omnivore"].x.shape[0]}'
+        # quit()
+
 
     # labels for omnivore nodes 
     graphs['omnivore'].y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long)
@@ -295,100 +342,17 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     # graphs['omnivore'].batch_idxs = batch_idx_designation
 
 
-    if split == 'test':
-       torch.save(graphs, os.path.join(path_graphs, 'test', f'{take_name}.pt'))
-       return
+    # if split == 'test':
+    #    torch.save(graphs, os.path.join(path_graphs, 'test', f'{take_name}.pt'))
+    #    print(f'Saved graph for {take_name} to {os.path.join(path_graphs, "test", take_name + ".pt")}')
+    #    return
     if take_name in train_ids:
         torch.save(graphs, os.path.join(path_graphs, 'train', f'{take_name}.pt'))
+        print(f'Saved graph for {take_name} to {os.path.join(path_graphs, "train", take_name + ".pt")}')
     else:
         torch.save(graphs, os.path.join(path_graphs, 'val', f'{take_name}.pt'))
+        print(f'Saved graph for {take_name} to {os.path.join(path_graphs, "val", take_name + ".pt")}')
 
-    # # # # Select the first 3 nodes of 'node_type1'
-    # data = graphs
-    # # selected_nodes = {node_type: torch.arange(min(3, data[node_type].x.size(0))) for node_type in data.node_types}
-
-    
-    # # Create a subgraph containing only the selected nodes and their connections
-    # subgraph = HeteroData()
-    # selected_node_type = 'omnivore'
-    # selected_nodes = torch.arange(min(2, data[selected_node_type].x.size(0)))
-
-    # # Find all nodes connected to the selected nodes
-    # connected_nodes = {node_type: set() for node_type in data.node_types}
-    # connected_edges = {edge_type: [] for edge_type in data.edge_types}
-
-    # for edge_type in data.edge_types:
-    #     print(edge_type)
-    #     src_type, _, dst_type = edge_type
-    #     edge_index = data[edge_type].edge_index
-    #     mask = torch.isin(edge_index[0], selected_nodes)
-        
-    #     for i in range(edge_index.size(1)):
-    #         if mask[i]:
-    #             src = int(edge_index[0, i])
-    #             dst = int(edge_index[1, i])
-    #             connected_nodes[src_type].add(src)
-    #             connected_nodes[dst_type].add(dst)
-    #             connected_edges[edge_type].append((src, dst))
-
-
-    # # # Add edges between all connected nodes
-    # # for edge_type in data.edge_types:
-    # #     src_type, _, dst_type = edge_type
-    # #     edge_index = data[edge_type].edge_index
-        
-    # #     for i in range(edge_index.size(1)):
-    # #         src = int(edge_index[0, i])
-    # #         dst = int(edge_index[1, i])
-            
-    # #         if src in connected_nodes[src_type] and dst in connected_nodes[dst_type]:
-    # #             connected_edges[edge_type].append((src, dst))
-
-    # # Create a subgraph containing the selected nodes and their connections
-    # subgraph = HeteroData()
-    # for node_type in data.node_types:
-    #     node_indices = list(connected_nodes[node_type])
-    #     subgraph[node_type].x = data[node_type].x[node_indices]
-
-    # for edge_type, edges in connected_edges.items():
-    #     if edges:
-    #         edge_index = torch.tensor(edges).t().contiguous()
-    #         subgraph[edge_type].edge_index = edge_index
-
-    # # for edge_type in data.edge_types:
-    # #     src_type, _, dst_type = edge_type
-    # #     src_selected = selected_nodes[src_type]
-    # #     dst_selected = selected_nodes[dst_type]
-    # #     edge_index = data[edge_type].edge_index
-    # #     mask = torch.isin(edge_index[0], src_selected) & torch.isin(edge_index[1], dst_selected)
-    # #     subgraph[edge_type].edge_index = edge_index[:, mask]
-
-    # # # Convert to NetworkX graph for visualization
-    # G = nx.Graph()
-
-    # # Add nodes
-    # for node_type in subgraph.node_types:
-    #     for i, node_idx in enumerate(list(connected_nodes[node_type])):
-    #         G.add_node((node_type, node_idx), type=node_type)
-
-    # # Add edges
-    # for edge_type in subgraph.edge_types:
-    #     src_type, _, dst_type = edge_type
-    #     edge_index = subgraph[edge_type].edge_index
-    #     for i in range(edge_index.size(1)):
-    #         src = (src_type, int(edge_index[0, i]))
-    #         dst = (dst_type, int(edge_index[1, i]))
-    #         G.add_edge(src, dst)
-
-    # # Plot the graph
-    # pos = nx.spring_layout(G)
-
-    # node_type_to_color = {node_type: i for i, node_type in enumerate(subgraph.node_types)}
-    # node_colors = [node_type_to_color[G.nodes[node]['type']] for node in G.nodes]
-    # nx.draw(G, pos, with_labels=True, node_size=500, font_size=10, font_color='black', cmap=plt.get_cmap('viridis'), node_color=node_colors)
-    # # save fig
-    # plt.savefig('graph.png')
-    # quit()
 
 
 

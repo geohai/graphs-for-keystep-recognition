@@ -47,7 +47,7 @@ def train(cfg):
     model = build_model(cfg, device)
     model.to(device)
     # number of model weights
-    print(f'Number of model weights:', sum(p.numel() for p in model.parameters()))
+    # print(f'Number of model weights:', sum(p.numel() for p in model.parameters()))
 
 
     train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
@@ -81,12 +81,13 @@ def train(cfg):
 
             y = data.y_dict['omnivore'].to(device)
 
-            if cfg['use_spf']:
-                c = data.c.to(device)
-            else:
-                c = None
-
-            logits = model(data, c)
+            # if cfg['use_spf']:
+            #     c = data.c.to(device)
+            # else:
+            #     c = None
+            # creat copy of data
+            logits = model(data) 
+            # logits = model(data, c) 
             
             loss = loss_func(logits, y)
             loss.backward()
@@ -136,7 +137,7 @@ def val(val_loader, use_spf, model, device, loss_func):
             else:
                 c = None
                 
-            logits = model(data, c)
+            logits = model(data)
 
             loss = loss_func(logits, y)
             loss_sum += loss.item()
