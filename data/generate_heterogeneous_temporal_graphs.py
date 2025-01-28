@@ -21,18 +21,15 @@ with open(takes_json_path) as f:
 
 
 def find_best_exo_view(take_name):
-    global count
     take_name = take_name.rsplit('_', 1)[0]
     for take_dict in takes:
         if take_dict['take_name'] == take_name:
             try:
                 return take_dict['best_exo'][-1]
             except:
-                count += 1
                 print('Best exo view not found')
                 return 1
     if 'sfu_cooking015_6' in take_name or 'georgiatech_cooking_08_01_6' in take_name:
-        count += 1
         return 1
     raise ValueError(f'Best exo view not found for {take_name}')
 
@@ -62,7 +59,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     # code to find best exo
     best_exo_num = find_best_exo_view(take_name)
     num_view = 1
-    print(f'Best exo view for {take_name}: {best_exo_num}')
+    # print(f'Best exo view for {take_name}: {best_exo_num}')
     for multiview_data_file in list_multiview_data_files:
         take_num = multiview_data_file[-1]
         # if take_num == best_exo_num:
@@ -73,23 +70,20 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
     if args.add_text:
         if not os.path.exists(os.path.join(args.text_dir, take_name + '.npy')):
-            print(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
-            # print(f'Text feature not found for {take_name}')
-            return 
-
-            # raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
+            # print(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
+            # return 
+            raise ValueError(f'Text feature not found for {os.path.join(args.text_dir, take_name + ".npy")}')
         text_feature = load_features(os.path.join(args.text_dir, take_name + '.npy'))
 
  
+    # # load depth featres (spatial--> depth)
+    # if args.add_spatial:
+    #     if not os.path.exists(os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy')):
+    #         print(f'Spatial feature not found for {os.path.join(args.root_data, "features", args.spatial_dir, take_name + ".npy")}')
+    #         return
 
-    # load spatial features
-    if args.add_spatial:
-        if not os.path.exists(os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy')):
-            print(f'Spatial feature not found for {os.path.join(args.root_data, "features", args.spatial_dir, take_name + ".npy")}')
-            return
-
-        spatial_feature = load_spatial_features(filepath=os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy'),
-                                            verbose=False)    
+    #     spatial_feature = load_spatial_features(filepath=os.path.join(args.root_data, 'features', args.spatial_dir, take_name + '.npy'),
+    #                                         verbose=False)    
 
         # print(list_multidepth_data_files)    
         # list_feature_multidepth = []
@@ -98,7 +92,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         #     assert spatial_feature.shape == feature_multidepth.shape, f'feature.shape: {spatial_feature.shape}, feature_multidepth.shape: {feature_multidepth.shape}'
         #     list_feature_multidepth.append(feature_multidepth)
 
-        node_feature = spatial_feature
+        # node_feature = spatial_feature
     else:
         node_feature = [[]]
 
@@ -108,8 +102,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     # feature = spatial_feature
         # create a random vector that is the same size as a single object feature
         # spatial_feature = np.random.rand(spatial_feature.shape[0], spatial_feature.shape[1])
-
-        
     # concat 
     # if args.add_text and args.add_spatial:
     #     node_feature = np.hstack((text_feature, spatial_feature))
@@ -119,19 +111,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     #     node_feature = spatial_feature
     
 
-    # print(f'node_feature.shape: {node_feature.shape}')
-
-
-
     #  load pre-averaged segmentwise features
     if cfg['load_segmentwise']:
        if split == 'test':
            label = load_labels_raw( root_data=args.root_data, annotation_dataset=args.dataset, video_id=take_name)
-
-
        else:
            label = load_labels(video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset)
-
     else:
         label = load_labels(trimmed=True, video_id=take_name, actions=actions, root_data=args.root_data, annotation_dataset=args.dataset) 
         batch_idx_path = os.path.join(args.root_data, 'annotations', args.dataset, 'batch_idx')
@@ -141,15 +126,16 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         label = [mode(label[i]) for i in range(len(label))]
 
 
-
     num_frame = feature.shape[0]
-    if args.add_spatial:
-        assert spatial_feature.shape[0] == num_frame, f'feature.shape: {feature.shape}, spatial_feature.shape: {spatial_feature.shape}'
+    # if args.add_spatial:
+    #     assert spatial_feature.shape[0] == num_frame, f'feature.shape: {feature.shape}, spatial_feature.shape: {spatial_feature.shape}'
     if args.add_text:
         assert text_feature.shape[0] == num_frame, f'feature.shape: {feature.shape}, text_feature.shape: {text_feature.shape}'
         if text_feature.shape[0] != num_frame:
             print(f'{take_name}--omnivore: {feature.shape}, text_feature: {text_feature.shape}')
             return
+
+
     # # Get a list of the edge information: these are for edge_index and edge_attr
     counter_similarity_edges_added = 0
     # edges between omnivore
@@ -157,13 +143,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     node_target = []
     edge_attr = []
 
-
     # edges between mode 2 (depth)
-    if args.add_spatial:
-        # edges between omnivore and text
-        spatial_hetero_node_source = []
-        spatial_hetero_node_target = []
-        spatial_hetero_edge_attr = []
+    # if args.add_spatial:
+    #     # edges between omnivore and text
+    #     spatial_hetero_node_source = []
+    #     spatial_hetero_node_target = []
+    #     spatial_hetero_edge_attr = []
 
         # spatial_node_source = []
         # spatial_node_target = []
@@ -171,10 +156,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
 
     if args.add_text:
+        # edges between omnivore and text
         text_hetero_node_source = []
         text_hetero_node_target = []
         text_hetero_edge_attr = []
 
+        # edges between text nodes (temporal)
         text_node_source = []
         text_node_target = []
         text_edge_attr = []
@@ -207,7 +194,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     text_edge_attr.append(np.sign(frame_diff))
 
                 
-                # add edges between the same view in different frames
+                # add edges between same view across frames
                 for k in range(1, num_view):
                     node_source.append(i+num_frame*k) # num_frame*k is the offset for the next view
                     node_target.append(j+num_frame*k)
@@ -227,12 +214,12 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                         edge_attr.append(-2)
 
 
-                    if args.add_spatial:
-                        # # # add edges between heterogenous nodes (spatial to  corresponding omnivore) in the same frame
-                        # ego spatial to ego omnivore
-                        spatial_hetero_node_source.append(i)
-                        spatial_hetero_node_target.append(j)
-                        spatial_hetero_edge_attr.append(-2)
+                    # if args.add_spatial:
+                    #     # # # add edges between heterogenous nodes (spatial to  corresponding omnivore) in the same frame
+                    #     # ego spatial to ego omnivore
+                    #     spatial_hetero_node_source.append(i)
+                    #     spatial_hetero_node_target.append(j)
+                    #     spatial_hetero_edge_attr.append(-2)
                         
                         # for k in range(1, num_view):
                         #     # exo to ego edges for spatial nodes
@@ -266,20 +253,18 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                         node_target.append(j+num_frame)
                         edge_attr.append(np.sign(frame_diff))
 
-            # Add similarity-based connections
-            # print(args.similarity_metric)
-            if args.similarity_metric is not None and i != j:
-                similarity = compute_similarity_metric(feature[i], feature[j], metric=args.similarity_metric)
-                if similarity > args.similarity_threshold:
-                    # print(f'Adding similarity edge between {i} and {j} with similarity {similarity}')
-                    node_source.append(i)
-                    node_target.append(j)
-                    edge_attr.append(np.sign(frame_diff))  # try 0
-                    counter_similarity_edges_added += 1
+            # # Add similarity-based connections
+            # # print(args.similarity_metric)
+            # if args.similarity_metric is not None and i != j:
+            #     similarity = compute_similarity_metric(feature[i], feature[j], metric=args.similarity_metric)
+            #     if similarity > args.similarity_threshold:
+            #         # print(f'Adding similarity edge between {i} and {j} with similarity {similarity}')
+            #         node_source.append(i)
+            #         node_target.append(j)
+            #         edge_attr.append(np.sign(frame_diff))  # try 0
+            #         counter_similarity_edges_added += 1
     
-    if args.similarity_metric is not None:
-        print(f'{counter_similarity_edges_added} similarity edges | {len(node_source) - counter_similarity_edges_added} | ' + "{:.1f}%".format(counter_similarity_edges_added / len(node_source) * 100) + " % of Total edges")
-
+   
     # x: features
     # g: global_id
     # edge_index: information on how the graph nodes are connected
@@ -304,10 +289,10 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     g = all_ids.index(take_name)
     graphs['omnivore'].g = torch.tensor([g], dtype=torch.long)
 
-    if args.add_spatial:
-        graphs['spatial'].x = torch.tensor(np.array(node_feature, dtype=np.float32), dtype=torch.float32)
-        graphs['omnivore', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_hetero_node_source, spatial_hetero_node_target], dtype=np.int32), dtype=torch.long)
-        graphs['omnivore', 'to', 'spatial'].edge_attr = torch.tensor(spatial_hetero_edge_attr, dtype=torch.float32)
+    # if args.add_spatial:
+    #     graphs['spatial'].x = torch.tensor(np.array(node_feature, dtype=np.float32), dtype=torch.float32)
+    #     graphs['omnivore', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_hetero_node_source, spatial_hetero_node_target], dtype=np.int32), dtype=torch.long)
+    #     graphs['omnivore', 'to', 'spatial'].edge_attr = torch.tensor(spatial_hetero_edge_attr, dtype=torch.float32)
 
         # ## addd edge types for multiview
         # graphs['spatial', 'to', 'spatial'].edge_index = torch.tensor(np.array([spatial_node_source, spatial_node_target], dtype=np.int32), dtype=torch.long)
@@ -318,28 +303,14 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
         graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([text_hetero_node_source, text_hetero_node_target], dtype=np.int32), dtype=torch.long)
         graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(text_hetero_edge_attr, dtype=torch.float32)
 
-        # print(f'AFTER ADDING TEXT: {graphs["omnivore", "to", "text"].edge_index.shape}')
+
         graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([text_node_source, text_node_target], dtype=np.int32), dtype=torch.long)
         graphs['text', 'to', 'text'].edge_attr = torch.tensor(text_edge_attr, dtype=torch.float32)
-
-        # # select the first 3 nodes for text and print their connections
-        # # print(f'First 3 nodes for text: {graphs["text"].x[:3]}')
-        # # print(f'Edges for text: {graphs["text", "to", "text"].edge_index[:, :10]}')
-        # # print(f'Edge attributes for text: {graphs["text", "to", "text"].edge_attr[:10]}')
-        # print(f'Number of edges for omnivore-text: {graphs["omnivore", "to", "text"].edge_index.shape[1]}')
-        # print(f'Edges for omnivore to text: {graphs["omnivore", "to", "text"].edge_index}')
-        # print(f'Edge attributes for omnivore to text: {graphs["omnivore", "to", "text"].edge_attr[:10]}')
-        # print(f'Number of nodes for text: {graphs["text"].x.shape[0]}')
-        # print(f'Number of nodes for omnivore: {graphs["omnivore"].x.shape[0]}')
         assert graphs["text"].x.shape[0] == graphs["omnivore"].x.shape[0], f'Number of nodes for text: {graphs["text"].x.shape[0]}, Number of nodes for omnivore: {graphs["omnivore"].x.shape[0]}'
-        # quit()
 
 
     # labels for omnivore nodes 
     graphs['omnivore'].y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long)
-
-    ## for framewise features need to save the corresponding framewise segment idx
-    # graphs['omnivore'].batch_idxs = batch_idx_designation
 
 
     # if split == 'test':
@@ -352,7 +323,6 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     else:
         torch.save(graphs, os.path.join(path_graphs, 'val', f'{take_name}.pt'))
         print(f'Saved graph for {take_name} to {os.path.join(path_graphs, "val", take_name + ".pt")}')
-
 
 
 
@@ -418,7 +388,7 @@ if __name__ == "__main__":
     list_splits = sorted(os.listdir(os.path.join(args.root_data, f'features/{args.features}')))
 
     for split in list_splits:
-        if split != 'test':
+        if split == 'test':
             continue
         # Get a list of training video ids
         if split != 'test':
