@@ -43,8 +43,6 @@ class SPELL_HETEROGENEOUS(Module):
         super(SPELL_HETEROGENEOUS, self).__init__()
         self.add_text = cfg['add_text']
         self.add_spatial = cfg['add_spatial']
-        print('Add text:', self.add_text)
-        print('Add spatial:', self.add_spatial)
         self.use_spf = cfg['use_spf'] # whether to use the spatial features
         self.num_modality = cfg['num_modality']
         if self.use_spf:
@@ -70,7 +68,8 @@ class SPELL_HETEROGENEOUS(Module):
             text_input_dim = cfg['text_input_dim']
             self.layer011_text = Linear(text_input_dim, channels[0])
             node_types = ['text', 'omnivore']
-            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text') ] # , , ('text', 'to', 'text')
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('text', 'to', 'text')] # , , 
+            print('Edge types:', edge_types)
 
 
         elif self.add_text and self.add_spatial:
@@ -135,13 +134,19 @@ class SPELL_HETEROGENEOUS(Module):
         # print('---------')
         # for key in data.x_dict.keys():
         #     print(f'Key: {key}, Shape: {data.x_dict[key].shape}')
+        #     # print(f'Num nodes {key}: {data[key].num_nodes}')
         # for key in data.edge_index_dict.keys():
         #     print(f'Key: {key}, Shape: {data.edge_index_dict[key].shape}')
+        #     # print(f'Num edges {key}: {data[key].num_edges}')
+        #     # print(f'{key} edge index: {data.edge_index_dict[key]}')
         # for key in data.edge_attr_dict.keys():
         #     print(f'Key: {key}, Shape: {data.edge_attr_dict[key].shape}')
+        #     print(f'{key} edge attr: {data.edge_attr_dict[key]}')
 
-        x_dict = self.model(data.x_dict, data.edge_index_dict, data.edge_attr_dict, c)
-        
+    
+        x_dict = self.model(data.x_dict, data.edge_index_dict, data.edge_attr_dict)
+    
+
         return x_dict['omnivore']
         
 
@@ -166,12 +171,12 @@ class SPELL(Module):
         self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
         self.batch13 = BatchNorm(channels[1])
 
-        self.layer31 = SAGEConv(channels[1], final_dim)
-        self.layer32 = SAGEConv(channels[1], final_dim)
-        self.layer33 = SAGEConv(channels[1], final_dim)
-        # self.layer31 = RGCNConv(channels[1], final_dim, num_relations=2)
-        # self.layer32 = RGCNConv(channels[1], final_dim, num_relations=2)
-        # self.layer33 = RGCNConv(channels[1], final_dim, num_relations=2)
+        # self.layer31 = SAGEConv(channels[1], final_dim)
+        # self.layer32 = SAGEConv(channels[1], final_dim)
+        # self.layer33 = SAGEConv(channels[1], final_dim)
+        self.layer31 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer32 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer33 = RGCNConv(channels[1], final_dim, num_relations=2)
 
         #####
 
@@ -207,15 +212,16 @@ class SPELL(Module):
             self.layer_ref3 = Refinement(final_dim)
 
 
-    def forward(self, x, edge_index, edge_attr, c=None):
+    def forward(self, x, edge_index, edge_attr):
         x = self.batch01(x)
         x = self.relu(x)
 
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]
-        # edge_type = (edge_attr != -2).type(torch.int64)
-        # edge_type_f = (edge_attr[edge_attr<=0] != -2).type(torch.int64)
-        # edge_type_b = (edge_attr[edge_attr>=0] != -2).type(torch.int64)
+
+        edge_type = (edge_attr != -2).type(torch.int64)
+        edge_type_f = (edge_attr[edge_attr<=0] != -2).type(torch.int64)
+        edge_type_b = (edge_attr[edge_attr>=0] != -2).type(torch.int64)
 
 
         ######## Forward-graph stream
@@ -249,9 +255,13 @@ class SPELL(Module):
         # x3 = self.relu(x3)
         # x3 = self.dropout(x3)
 
-        x1 = self.layer31(x1, edge_index_f)
-        x2 = self.layer32(x2, edge_index_b)
-        x3 = self.layer33(x3, edge_index)
+        # x1 = self.layer31(x1, edge_index_f)
+        # x2 = self.layer32(x2, edge_index_b)
+        # x3 = self.layer33(x3, edge_index)
+
+        x1 = self.layer31(x1, edge_index_f, edge_type_f)
+        x2 = self.layer32(x2, edge_index_b, edge_type_b)
+        x3 = self.layer33(x3, edge_index, edge_type)
 
         out = x1+x2+x3
             
