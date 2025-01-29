@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module, ModuleList, Conv1d, Sequential, ReLU, Dropout, functional as F
-from torch_geometric.nn import to_hetero, Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm, MLP
+from torch_geometric.nn import to_hetero, Linear, EdgeConv, GATv2Conv, SAGEConv, BatchNorm, MLP, RGCNConv
 import numpy as np
 from torch_geometric.data import HeteroData
 from gravit.models.naive import SimpleMLP
@@ -147,23 +147,26 @@ class SPELL_BASE(Module):
         self.relu = ReLU()
         self.dropout = Dropout(dropout)
 
-        self.layer11 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
-        self.batch11 = BatchNorm(channels[0])
-        self.layer12 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
-        self.batch12 = BatchNorm(channels[0])
-        self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[0])))
-        self.batch13 = BatchNorm(channels[0])
+        self.layer11 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
+        self.batch11 = BatchNorm(channels[1])
+        self.layer12 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
+        self.batch12 = BatchNorm(channels[1])
+        self.layer13 = EdgeConv(Sequential(Linear(2*channels[0], channels[0]), ReLU(), Linear(channels[0], channels[1])))
+        self.batch13 = BatchNorm(channels[1])
 
-        if num_att_heads > 0:
-            self.layer21 = GATv2Conv(channels[0], channels[1], heads=num_att_heads, add_self_loops=False) #DEBUGGING, set add_self_loops to False
-        else:
-            self.layer21 = SAGEConv(channels[0], channels[1])
-            num_att_heads = 1
-        self.batch21 = BatchNorm(channels[1]*num_att_heads)
+        # if num_att_heads > 0:
+        #     self.layer21 = GATv2Conv(channels[0], channels[1], heads=num_att_heads, add_self_loops=False) #DEBUGGING, set add_self_loops to False
+        # else:
+        #     self.layer21 = SAGEConv(channels[0], channels[1])
+        #     num_att_heads = 1
+        # self.batch21 = BatchNorm(channels[1]*num_att_heads)
 
-        self.layer31 = SAGEConv(channels[1]*num_att_heads, final_dim)
-        self.layer32 = SAGEConv(channels[1]*num_att_heads, final_dim)
-        self.layer33 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        # self.layer31 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        # self.layer32 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        # self.layer33 = SAGEConv(channels[1]*num_att_heads, final_dim)
+        self.layer31 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer32 = RGCNConv(channels[1], final_dim, num_relations=2)
+        self.layer33 = RGCNConv(channels[1], final_dim, num_relations=2)
 
         if self.use_ref:
             self.layer_ref1 = Refinement(final_dim)
@@ -179,41 +182,47 @@ class SPELL_BASE(Module):
         edge_index_f = edge_index[:, edge_attr<=0]
         edge_index_b = edge_index[:, edge_attr>=0]
 
+        edge_type = (edge_attr != -2).type(torch.int64)
+        edge_type_f = (edge_attr[edge_attr<=0] != -2).type(torch.int64)
+        edge_type_b = (edge_attr[edge_attr>=0] != -2).type(torch.int64)
+
 
         ######## Forward-graph stream
         x1 = self.layer11(x, edge_index_f)
-
         x1 = self.batch11(x1)
         x1 = self.relu(x1)
         x1 = self.dropout(x1)
-        x1 = self.layer21(x1, edge_index_f)
-        x1 = self.batch21(x1)
-        x1 = self.relu(x1)
-        x1 = self.dropout(x1)
+        # x1 = self.layer21(x1, edge_index_f)
+        # x1 = self.batch21(x1)
+        # x1 = self.relu(x1)
+        # x1 = self.dropout(x1)
 
         ######## Backward-graph stream
         x2 = self.layer12(x, edge_index_b)
         x2 = self.batch12(x2)
         x2 = self.relu(x2)
         x2 = self.dropout(x2)
-        x2 = self.layer21(x2, edge_index_b)
-        x2 = self.batch21(x2)
-        x2 = self.relu(x2)
-        x2 = self.dropout(x2)
+        # x2 = self.layer21(x2, edge_index_b)
+        # x2 = self.batch21(x2)
+        # x2 = self.relu(x2)
+        # x2 = self.dropout(x2)
 
         ######## Undirected-graph stream
         x3 = self.layer13(x, edge_index)
         x3 = self.batch13(x3)
         x3 = self.relu(x3)
         x3 = self.dropout(x3)
-        x3 = self.layer21(x3, edge_index)
-        x3 = self.batch21(x3)
-        x3 = self.relu(x3)
-        x3 = self.dropout(x3)
+        # x3 = self.layer21(x3, edge_index)
+        # x3 = self.batch21(x3)
+        # x3 = self.relu(x3)
+        # x3 = self.dropout(x3)
 
-        x1 = self.layer31(x1, edge_index_f)
-        x2 = self.layer32(x2, edge_index_b)
-        x3 = self.layer33(x3, edge_index)
+        # x1 = self.layer31(x1, edge_index_f)
+        # x2 = self.layer32(x2, edge_index_b)
+        # x3 = self.layer33(x3, edge_index)
+        x1 = self.layer31(x1, edge_index_f, edge_type_f)
+        x2 = self.layer32(x2, edge_index_b, edge_type_b)
+        x3 = self.layer33(x3, edge_index, edge_type)
 
         out = x1+x2+x3
             

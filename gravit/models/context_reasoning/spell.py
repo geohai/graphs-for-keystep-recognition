@@ -232,33 +232,32 @@ class SPELL(Module):
             self.layer_ref2 = Refinement(final_dim)
             self.layer_ref3 = Refinement(final_dim)
 
-    # def forward(self, x, edge_index, edge_attr, c=None, batch=None, view_idx=None):
-    def forward(self, data):
+    def forward(self, x, edge_index, edge_attr, c=None, batch=None, view_idx=None):
+    # def forward(self, data):
         # y = torch.cat([dt.y for dt in data], 0).to(device)
         # x = torch.cat([dt.x for dt in data], 0).to(device)
         # edge_index = torch.cat([dt.edge_index for dt in data], 1).to(device)
         # edge_attr = torch.cat([dt.edge_attr for dt in data], 0).to(device)
 
-        x = data.x
-        edge_index = data.edge_index
-        edge_attr = data.edge_attr
-        c = None #data.c
-        # num_nodes = data.num_nodes
-        # print(f'num_nodes: {num_nodes}')
+        # x = data.x
+        # edge_index = data.edge_index
+        # edge_attr = data.edge_attr
+        # c = None #data.c
 
 
-        feature_dim = x.shape[1]
 
-        if self.use_spf:
-            x_visual = self.layer011(torch.cat((x[:, :feature_dim//self.num_modality], self.layer_spf(c)), dim=1))
-        else:
-            x_visual = self.layer011(x[:, :feature_dim//self.num_modality])
+        # feature_dim = x.shape[1]
 
-        if self.num_modality == 1:
-            x = x_visual
-        elif self.num_modality == 2:
-            x_audio = self.layer012(x[:, feature_dim//self.num_modality:])
-            x = x_visual + x_audio
+        # if self.use_spf:
+        #     x_visual = self.layer011(torch.cat((x[:, :feature_dim//self.num_modality], self.layer_spf(c)), dim=1))
+        # else:
+        #     x_visual = self.layer011(x[:, :feature_dim//self.num_modality])
+
+        # if self.num_modality == 1:
+        #     x = x_visual
+        # elif self.num_modality == 2:
+        #     x_audio = self.layer012(x[:, feature_dim//self.num_modality:])
+        #     x = x_visual + x_audio
 
         x = self.batch01(x)
         x = self.relu(x)

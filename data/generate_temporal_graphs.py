@@ -88,16 +88,43 @@ def generate_temporal_graph(data_file, args, path_graphs, actions, train_ids, al
                 node_target.append(j)
                 edge_attr.append(np.sign(frame_diff))
 
+                # temporal conection between same view nodes
                 for k in range(1, num_view):
                     node_source.append(i+num_frame*k)
                     node_target.append(j+num_frame*k)
                     edge_attr.append(np.sign(frame_diff))
 
+                # connections between exo and ego nodes
                 if frame_diff == 0:
                     for k in range(1, num_view):
                         node_source.append(i)
                         node_target.append(j+num_frame*k)
-                        edge_attr.append(-1)
+                        edge_attr.append(-2)
+
+                        # node_source.append(i)
+                        # node_target.append(j+num_frame*k)
+                        # edge_attr.append(1)
+
+                        # node_source.append(i)
+                        # node_target.append(j+num_frame*k)
+                        # edge_attr.append(0)
+
+                    # add connections between all exo nodes too
+                    for k in range(1, num_view):
+                        for l in range(1, num_view):
+                            # if k == l:
+                            node_source.append(i+num_frame*k)
+                            node_target.append(j+num_frame*l)
+                            edge_attr.append(-2)
+
+                            # node_source.append(i+num_frame*k)
+                            # node_target.append(j+num_frame*l)
+                            # edge_attr.append(1)
+
+                            # # add undirected connections between all exo nodes
+                            # node_source.append(i+num_frame*k)
+                            # node_target.append(j+num_frame*l)
+                            # edge_attr.append(0)
 
             # Make additional connections between non-adjacent nodes
             # This can help reduce over-segmentation of predictions in some cases

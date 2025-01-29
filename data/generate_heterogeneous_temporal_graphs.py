@@ -110,7 +110,7 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
                     for k in range(1, num_view):
                         node_source.append(i)
                         node_target.append(j+num_frame*k)
-                        edge_attr.append(-1)
+                        edge_attr.append(-2)
 
                 # add edges between heterogenous nodes (text to ego) in the same frame
                 if frame_diff == 0:

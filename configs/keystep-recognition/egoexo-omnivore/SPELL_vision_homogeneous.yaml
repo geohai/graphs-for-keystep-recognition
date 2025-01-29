@@ -1,9 +1,9 @@
 exp_name: gravit-segmentwise-multiview
 model_name: SPELL 
-# graph_name: multiview # to create multiview graph
+graph_name: multiview # to create multiview graph
 
 #### When the training data is multiview, the eval data has to be single view ####
-graph_name: ego # run once to create ego-centric graph (needed to evaluate multi-view graph)
+# graph_name: ego # run once to create ego-centric graph (needed to evaluate multi-view graph)
 graph_name_eval: ego # to evaluate multiview graph on egocentric graph
 ####
 
@@ -28,9 +28,9 @@ num_att_heads: 4
 dropout: 0.5
 lr: 0.0005
 wd: 0.01
-batch_size: 160
+batch_size: 32
 sch_param: 45
-num_epoch: 150
+num_epoch: 60
 sample_rate: 1
 eval_type: KR
 similarity_metric: None #cosine

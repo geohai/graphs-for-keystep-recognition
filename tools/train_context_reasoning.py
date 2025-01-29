@@ -48,12 +48,12 @@ def train(cfg):
     logger.info('Preparing a model and data loaders')
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     model = build_model(cfg, device)
-    model = DataParallel(model, device_ids=[0, 1])
+    # model = DataParallel(model, device_ids=[0, 1])
     model.to(device)
 
 
-    train_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
-    val_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+    train_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'train')), batch_size=cfg['batch_size'], shuffle=True)
+    val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
     # Prepare the experiment
     loss_func = get_loss_func(cfg)
@@ -76,29 +76,32 @@ def train(cfg):
         loss_sum = 0
         for data in train_loader:
             optimizer.zero_grad()
-            # data = data.to(device)
+            data = data.to(device)
 
-            # x = data.x.to(device)
-            # y = data.y.to(device)
-            y = torch.cat([dt.y for dt in data], 0).to(device)
+            x = data.x.to(device)
+            y = data.y.to(device)
+            # y = torch.cat([dt.y for dt in data], 0).to(device)
 
          
-            # edge_index = data.edge_index.to(device)
-            # edge_attr = data.edge_attr.to(device)
-            # c, batch, view_idx = None, None, None
-            # c = data.c.to(device) if cfg['use_spf'] else None
-            # if 'batch_idxs' in data.keys():
-            #     batch = data.batch_idxs.to(device)
-            # else:
-            #     batch = None
-            # if 'view_idxs' in data.keys():
-            #     view_idx = data.view_idxs.to(device)
+            edge_index = data.edge_index.to(device)
+            edge_attr = data.edge_attr.to(device)
+            c, batch, view_idx = None, None, None
+            c = data.c.to(device) if cfg['use_spf'] else None
+            if 'batch_idxs' in data.keys():
+                batch = data.batch_idxs.to(device)
+            else:
+                batch = None
+            if 'view_idxs' in data.keys():
+                view_idx = data.view_idxs.to(device)
             if cfg['use_spf']:
                 c = data.c.to(device)
 
+            # num_nodes = data.num_nodes / data.num_graphs
+            # print(f'num_nodes: {num_nodes}')
 
-            logits = model(data)
-            # logits = model(x, edge_index, edge_attr, c)
+
+            # logits = model(data)
+            logits = model(x, edge_index, edge_attr, c)
             
             loss = loss_func(logits, y)
             loss.backward()
@@ -137,25 +140,25 @@ def val(val_loader, use_spf, model, device, loss_func):
     predictions = []
     with torch.no_grad():
         for data in val_loader:  
-            # x, y = data.x.to(device), data.y.to(device)
+            x, y = data.x.to(device), data.y.to(device)
             # y = torch.cat([dt.y for dt in data], 0).to(device)
             # x = torch.cat([dt.x for dt in data], 0).to(device)
-            # g = data.g.tolist()
-            # edge_index = data.edge_index.to(device)
-            # edge_attr = data.edge_attr.to(device)
-            # c, batch, view_idx = None, None, None
-            # if 'batch_idxs' in data.keys():
-            #     batch = data.batch_idxs.to(device)
-            # if 'view_idxs' in data.keys():
-            #     view_idx = data.view_idxs.to(device)
+            g = data.g.tolist()
+            edge_index = data.edge_index.to(device)
+            edge_attr = data.edge_attr.to(device)
+            c, batch, view_idx = None, None, None
+            if 'batch_idxs' in data.keys():
+                batch = data.batch_idxs.to(device)
+            if 'view_idxs' in data.keys():
+                view_idx = data.view_idxs.to(device)
             if cfg['use_spf']:
                 c = data.c.to(device)
             
-            y = torch.cat([dt.y for dt in data], 0).to(device)
+            # y = torch.cat([dt.y for dt in data], 0).to(device)
 
             
-            logits = model(data)
-            # logits = model(x, edge_index, edge_attr, c)
+            # logits = model(data)
+            logits = model(x, edge_index, edge_attr, c)
             loss = loss_func(logits, y)
             loss_sum += loss.item()
 

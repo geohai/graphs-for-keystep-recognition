@@ -49,11 +49,11 @@ def evaluate(cfg):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(device)
     model = build_model(cfg, device)
-    model = DataParallel(model, device_ids=[0, 1])
+    # model = DataParallel(model, device_ids=[0, 1])
 
     print(f'Loading the data from {path_graphs}')
-    # val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
-    val_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+    val_loader = DataLoader(GraphDataset(os.path.join(path_graphs, 'val')))
+    # val_loader = DataListLoader(GraphDataset(os.path.join(path_graphs, 'val')))
    
     num_val_graphs = len(val_loader)
 
@@ -76,25 +76,28 @@ def evaluate(cfg):
         print(f'Batch size: {cfg["batch_size"]}')
         
         for i, data in enumerate(val_loader, 1):
-            # g = data.g.tolist()
-            # x = data.x.to(device)
-            # y = data.y.to(device) 
-            # edge_index = data.edge_index.to(device)
-            # edge_attr = data.edge_attr.to(device)
-            # c, batch = None, None
-            # if 'batch_idxs' in data.keys():
-            #     batch = data.batch_idxs
-            #     batch = batch.to(device)
-            # else:
-            #     batch = None
-            y = torch.cat([dt.y for dt in data], 0).to(device)
-            g = [dt.g for dt in data]
+            g = data.g.tolist()
+            x = data.x.to(device)
+            y = data.y.to(device) 
+            edge_index = data.edge_index.to(device)
+            edge_attr = data.edge_attr.to(device)
+            c, batch = None, None
+            if 'batch_idxs' in data.keys():
+                batch = data.batch_idxs
+                batch = batch.to(device)
+            else:
+                batch = None
+            # y = torch.cat([dt.y for dt in data], 0).to(device)
+            # g = [dt.g for dt in data]
             
             if cfg['use_spf']:
                 c = data.c.to(device)
 
-            # logits = model(x, edge_index, edge_attr, c, batch=batch)
-            logits = model(data)
+            # num_nodes = data.num_nodes / data.num_graphs
+            # print(f'num_nodes: {num_nodes}')
+
+            logits = model(x, edge_index, edge_attr, c, batch=batch)
+            # logits = model(data)
 
 
             # Change the format of the model output
