@@ -68,7 +68,7 @@ class SPELL_HETEROGENEOUS(Module):
             text_input_dim = cfg['text_input_dim']
             self.layer011_text = Linear(text_input_dim, channels[0])
             node_types = ['text', 'omnivore']
-            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('text', 'to', 'text')] # , , 
+            edge_types = [ ('omnivore', 'to', 'omnivore'), ('omnivore', 'to', 'text'), ('text', 'to', 'omnivore'), ('text', 'to', 'text')]
             print('Edge types:', edge_types)
 
 

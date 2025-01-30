@@ -306,6 +306,13 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
 
         graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([text_node_source, text_node_target], dtype=np.int32), dtype=torch.long)
         graphs['text', 'to', 'text'].edge_attr = torch.tensor(text_edge_attr, dtype=torch.float32)
+
+        graphs['text', 'to', 'omnivore'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
+        graphs['text', 'to', 'omnivore'].edge_attr = torch.tensor(hetero_edge_attr, dtype=torch.float32)
+
+        graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int32), dtype=torch.long)
+        graphs['text', 'to', 'text'].edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+
         assert graphs["text"].x.shape[0] == graphs["omnivore"].x.shape[0], f'Number of nodes for text: {graphs["text"].x.shape[0]}, Number of nodes for omnivore: {graphs["omnivore"].x.shape[0]}'
 
 
