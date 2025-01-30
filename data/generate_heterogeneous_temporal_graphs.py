@@ -171,7 +171,13 @@ def generate_heterogeneous_temporal_graph(data_file, args, path_graphs, actions,
     graphs['text'].x = torch.tensor(np.array(text_feature, dtype=np.float32), dtype=torch.float32)
     graphs['omnivore', 'to', 'text'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
     graphs['omnivore', 'to', 'text'].edge_attr = torch.tensor(hetero_edge_attr, dtype=torch.float32)
-    
+
+    graphs['text', 'to', 'omnivore'].edge_index = torch.tensor(np.array([hetero_node_source, hetero_node_target], dtype=np.int32), dtype=torch.long)
+    graphs['text', 'to', 'omnivore'].edge_attr = torch.tensor(hetero_edge_attr, dtype=torch.float32)
+
+    graphs['text', 'to', 'text'].edge_index = torch.tensor(np.array([node_source, node_target], dtype=np.int32), dtype=torch.long)
+    graphs['text', 'to', 'text'].edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+
 
     # labels for omnivore nodes 
     graphs['omnivore'].y = torch.tensor(np.array(label, dtype=np.int16)[::args.sample_rate], dtype=torch.long)
