@@ -68,7 +68,6 @@ If you find this work helpful, please consider citing our extended abstract:
   author    = {Julia Lee Romero and Kyle Min and Subarna Tripathi and Morteza Karimzadeh},
   booktitle = {Extended Abstract, 2nd Workshop on Egocentric Perception (EPIC) at CVPR},
   year      = {2025},
-  address   = {Seattle, WA, USA},
   note      = {Presented at the 2nd Workshop on Egocentric Perception, CVPR 2025},
 }
 ```
