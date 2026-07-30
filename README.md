@@ -1,6 +1,6 @@
 # GLEVR: Graph Learning for Egocentric Video Recognition
 
-This work won 1st place in the Ego-Exo4D Fine-Grained Keystep Recognition Benchmark Challenge at the Egocentric Vision Workshop at CVPR 2025 and is published in the Proceedings of ICCV Workshops 2025 [here]([https://geohai.org/projects/spatiotemporal-graph-action.html](https://openaccess.thecvf.com/content/ICCV2025W/SG2RL/html/Romero_Long-form_Reasoning_for_Keystep_Recognition_using_Graph_Neural_Networks_ICCVW_2025_paper.html)).  
+This work won 1st place in the Ego-Exo4D Fine-Grained Keystep Recognition Benchmark Challenge at the Egocentric Vision Workshop at CVPR 2025 and is published in the Proceedings of ICCV Workshops 2025 [here](https://openaccess.thecvf.com/content/ICCV2025W/SG2RL/html/Romero_Long-form_Reasoning_for_Keystep_Recognition_using_Graph_Neural_Networks_ICCVW_2025_paper.html).  
 Check out our lab website if interested [here](https://geohai.org/projects/spatiotemporal-graph-action.html).
 
 **GLEVR** (Graph Learning on Egocentric Videos for keystep Recognition) is a lightweight, flexible graph-learning framework for fine-grained keystep recognition in egocentric videos. It leverages graph-based representations to capture long-term dependencies efficiently and integrates multi-view and multimodal data available only during training to boost performance at inference time.
