@@ -1,7 +1,6 @@
 # GLEVR: Graph Learning for Egocentric Video Recognition
 
-This work won 1st place in the Ego-Exo4D Keystep Recognition Challenge at the EgoVis Workshop at CVPR 2025.  
-Readme will be updated soon after CVPR 2025.  
+This work won 1st place in the Ego-Exo4D Fine-Grained Keystep Recognition Benchmark Challenge at the Egocentric Vision Workshop at CVPR 2025 and is published in the Proceedings of ICCV Workshops 2025 [here]([https://geohai.org/projects/spatiotemporal-graph-action.html](https://openaccess.thecvf.com/content/ICCV2025W/SG2RL/html/Romero_Long-form_Reasoning_for_Keystep_Recognition_using_Graph_Neural_Networks_ICCVW_2025_paper.html)).  
 Check out our lab website if interested [here](https://geohai.org/projects/spatiotemporal-graph-action.html).
 
 **GLEVR** (Graph Learning on Egocentric Videos for keystep Recognition) is a lightweight, flexible graph-learning framework for fine-grained keystep recognition in egocentric videos. It leverages graph-based representations to capture long-term dependencies efficiently and integrates multi-view and multimodal data available only during training to boost performance at inference time.
@@ -11,9 +10,9 @@ Check out our lab website if interested [here](https://geohai.org/projects/spati
 ## 🧠 Key Ideas
 
 - **Node Classification for Keystep Recognition**: Each keystep segment is represented as a node in a temporal graph.
-- **Multiview & Multimodal Training**: Additional exocentric views and video narrations are used to improve egocentric video understanding.
+- **Multiview & Multimodal Training**: Additional exocentric views and video narrations are incorporated using additional nodes and edge types to improve egocentric video understanding.
 - **Efficient Graph Construction**: Sparse, flexible graph topologies yield high accuracy with significantly lower model size and compute cost than traditional video models.
-- **Egocentric-Only Inference**: At test time, only the egocentric video view is used.
+- **Egocentric-Only Inference**: At test time, only the egocentric video view is needed.
 
 ---
 
@@ -60,14 +59,14 @@ GLEVR outperforms all baselines on the Ego-Exo4D dataset with significantly smal
 
 ## 📚 Citation
 
-If you find this work helpful, please consider citing our extended abstract:
+If you find this work helpful, please consider citing our work:
 
 ```bibtex
-@inproceedings{romero2025keystep,
-  title     = {Keystep Recognition using Graph Neural Networks},
-  author    = {Julia Lee Romero and Kyle Min and Subarna Tripathi and Morteza Karimzadeh},
-  booktitle = {Extended Abstract, 2nd Workshop on Egocentric Perception (EPIC) at CVPR},
-  year      = {2025},
-  note      = {Presented at the 2nd Workshop on Egocentric Perception, CVPR 2025},
+@inproceedings{romero2025long,
+  title={Long-form Reasoning for Keystep Recognition using Graph Neural Networks},
+  author={Romero, Julia and Min, Kyle and Tripathi, Subarna and Karimzadeh, Morteza},
+  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  pages={7624--7633},
+  year={2025}
 }
 ```
